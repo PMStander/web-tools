@@ -106,15 +106,105 @@ const videoTools = [
       { label: "Simple Merge", action: () => console.log("Simple merge") },
       { label: "With Transitions", action: () => console.log("With transitions") }
     ]
+  },
+  {
+    title: "Video Splitter",
+    description: "Split videos into multiple segments with precise timing control",
+    icon: "/window.svg",
+    href: "/tools/video/split",
+    category: "Video Tools",
+    isNew: true,
+    rating: 4.5,
+    usageCount: 9870,
+    estimatedTime: "2min",
+    quickActions: [
+      { label: "Equal Parts", action: () => console.log("Equal parts") },
+      { label: "Custom Times", action: () => console.log("Custom times") }
+    ]
+  },
+  {
+    title: "Video Watermark",
+    description: "Add text or image watermarks to your videos with custom positioning",
+    icon: "/window.svg",
+    href: "/tools/video/watermark",
+    category: "Video Tools",
+    isNew: true,
+    rating: 4.4,
+    usageCount: 8650,
+    estimatedTime: "3min",
+    quickActions: [
+      { label: "Text Watermark", action: () => console.log("Text watermark") },
+      { label: "Image Watermark", action: () => console.log("Image watermark") }
+    ]
+  },
+  {
+    title: "Video Speed Control",
+    description: "Adjust video playback speed from slow motion to fast forward",
+    icon: "/window.svg",
+    href: "/tools/video/speed",
+    category: "Video Tools",
+    isNew: true,
+    rating: 4.3,
+    usageCount: 7420,
+    estimatedTime: "2min",
+    quickActions: [
+      { label: "2x Speed", action: () => console.log("2x speed") },
+      { label: "0.5x Speed", action: () => console.log("0.5x speed") }
+    ]
+  },
+  {
+    title: "Video Rotator",
+    description: "Rotate videos by 90, 180, or 270 degrees to fix orientation",
+    icon: "/window.svg",
+    href: "/tools/video/rotate",
+    category: "Video Tools",
+    isNew: true,
+    rating: 4.2,
+    usageCount: 6340,
+    estimatedTime: "90s",
+    quickActions: [
+      { label: "90° Right", action: () => console.log("90 degrees") },
+      { label: "180°", action: () => console.log("180 degrees") }
+    ]
+  },
+  {
+    title: "Video Mute",
+    description: "Remove or partially mute audio from videos with fade effects",
+    icon: "/window.svg",
+    href: "/tools/video/mute",
+    category: "Video Tools",
+    isNew: true,
+    rating: 4.1,
+    usageCount: 5280,
+    estimatedTime: "60s",
+    quickActions: [
+      { label: "Complete Mute", action: () => console.log("Complete mute") },
+      { label: "Partial Mute", action: () => console.log("Partial mute") }
+    ]
+  },
+  {
+    title: "Video Optimizer",
+    description: "Optimize videos for web, mobile, streaming, and social media platforms",
+    icon: "/window.svg",
+    href: "/tools/video/optimize",
+    category: "Video Tools",
+    isNew: true,
+    rating: 4.7,
+    usageCount: 11560,
+    estimatedTime: "3min",
+    quickActions: [
+      { label: "Web Optimize", action: () => console.log("Web optimize") },
+      { label: "Social Media", action: () => console.log("Social media") }
+    ]
   }
 ]
 
 const categories = [
   { name: "All Tools", icon: <Video className="h-4 w-4" />, count: videoTools.length },
-  { name: "Convert", icon: <FileVideo className="h-4 w-4" />, count: 2 },
-  { name: "Edit", icon: <Scissors className="h-4 w-4" />, count: 2 },
+  { name: "Convert", icon: <FileVideo className="h-4 w-4" />, count: 3 },
+  { name: "Edit", icon: <Scissors className="h-4 w-4" />, count: 6 },
   { name: "Extract", icon: <Music className="h-4 w-4" />, count: 2 },
-  { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 1 }
+  { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 2 }
 ]
 
 const features = [
@@ -152,18 +242,20 @@ const supportedFormats = [
 export default function VideoToolsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All Tools")
   
-  const filteredTools = selectedCategory === "All Tools" 
-    ? videoTools 
+  const filteredTools = selectedCategory === "All Tools"
+    ? videoTools
     : videoTools.filter(tool => {
         switch (selectedCategory) {
           case "Convert":
-            return tool.title.includes("Converter") || tool.title.includes("Extract")
+            return tool.title.includes("Converter") || tool.title.includes("Extract") || tool.title.includes("Optimizer")
           case "Edit":
-            return tool.title.includes("Trimmer") || tool.title.includes("Merger")
+            return tool.title.includes("Trimmer") || tool.title.includes("Merger") || tool.title.includes("Splitter") ||
+                   tool.title.includes("Watermark") || tool.title.includes("Speed") || tool.title.includes("Rotator") ||
+                   tool.title.includes("Mute")
           case "Extract":
             return tool.title.includes("Audio") || tool.title.includes("Thumbnail")
           case "Optimize":
-            return tool.title.includes("Compressor")
+            return tool.title.includes("Compressor") || tool.title.includes("Optimizer")
           default:
             return true
         }

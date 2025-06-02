@@ -42,6 +42,67 @@ const imageTools = [
     ]
   },
   {
+    title: "Image Crop",
+    description: "Crop images with custom dimensions, aspect ratios, and smart positioning",
+    icon: "/window.svg",
+    href: "/tools/image/crop",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.6,
+    usageCount: 8950,
+    estimatedTime: "5s",
+    quickActions: [
+      { label: "Square Crop", action: () => console.log("Square crop") },
+      { label: "16:9 Ratio", action: () => console.log("16:9 crop") }
+    ]
+  },
+  {
+    title: "Image Rotate",
+    description: "Rotate images by any angle with smart background filling",
+    icon: "/window.svg",
+    href: "/tools/image/rotate",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.5,
+    usageCount: 7230,
+    estimatedTime: "5s",
+    quickActions: [
+      { label: "90° Right", action: () => console.log("Rotate 90") },
+      { label: "180°", action: () => console.log("Rotate 180") }
+    ]
+  },
+  {
+    title: "Image Flip",
+    description: "Flip images horizontally, vertically, or both directions",
+    icon: "/window.svg",
+    href: "/tools/image/flip",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.4,
+    usageCount: 6180,
+    estimatedTime: "3s",
+    quickActions: [
+      { label: "Horizontal", action: () => console.log("Flip horizontal") },
+      { label: "Vertical", action: () => console.log("Flip vertical") }
+    ]
+  },
+  {
+    title: "Background Removal",
+    description: "Remove or replace image backgrounds with AI-powered precision",
+    icon: "/window.svg",
+    href: "/tools/image/background-removal",
+    category: "Image Tools",
+    isNew: true,
+    aiRecommended: true,
+    rating: 4.8,
+    usageCount: 15420,
+    estimatedTime: "15s",
+    quickActions: [
+      { label: "Auto Remove", action: () => console.log("Auto remove bg") },
+      { label: "Color Based", action: () => console.log("Color remove") }
+    ]
+  },
+  {
     title: "Image Resize",
     description: "Resize images with precision control over dimensions and aspect ratio",
     icon: "/window.svg",
@@ -114,16 +175,167 @@ const imageTools = [
       { label: "Auto Enhance", action: () => console.log("Auto enhance") },
       { label: "Upscale 2x", action: () => console.log("Upscale 2x") }
     ]
+  },
+  {
+    title: "Image Blur",
+    description: "Apply various blur effects including Gaussian, motion, and selective blur",
+    icon: "/window.svg",
+    href: "/tools/image/blur",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.3,
+    usageCount: 5670,
+    estimatedTime: "8s",
+    quickActions: [
+      { label: "Gaussian Blur", action: () => console.log("Gaussian blur") },
+      { label: "Motion Blur", action: () => console.log("Motion blur") }
+    ]
+  },
+  {
+    title: "Brightness & Contrast",
+    description: "Adjust brightness, contrast, gamma, and exposure with precision controls",
+    icon: "/window.svg",
+    href: "/tools/image/brightness-contrast",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.4,
+    usageCount: 8920,
+    estimatedTime: "5s",
+    quickActions: [
+      { label: "Auto Adjust", action: () => console.log("Auto adjust") },
+      { label: "High Contrast", action: () => console.log("High contrast") }
+    ]
+  },
+  {
+    title: "Color Saturation",
+    description: "Adjust saturation, vibrance, hue, and color balance for perfect colors",
+    icon: "/window.svg",
+    href: "/tools/image/saturation",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.5,
+    usageCount: 7340,
+    estimatedTime: "5s",
+    quickActions: [
+      { label: "Enhance Colors", action: () => console.log("Enhance colors") },
+      { label: "Desaturate", action: () => console.log("Desaturate") }
+    ]
+  },
+  {
+    title: "Grayscale Converter",
+    description: "Convert images to grayscale using multiple algorithms and methods",
+    icon: "/window.svg",
+    href: "/tools/image/grayscale",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.2,
+    usageCount: 6180,
+    estimatedTime: "3s",
+    quickActions: [
+      { label: "Standard", action: () => console.log("Standard grayscale") },
+      { label: "Luminance", action: () => console.log("Luminance grayscale") }
+    ]
+  },
+  {
+    title: "Add Border",
+    description: "Add solid, gradient, pattern, or shadow borders to your images",
+    icon: "/window.svg",
+    href: "/tools/image/border",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.3,
+    usageCount: 4920,
+    estimatedTime: "7s",
+    quickActions: [
+      { label: "Solid Border", action: () => console.log("Solid border") },
+      { label: "Shadow", action: () => console.log("Shadow border") }
+    ]
+  },
+  {
+    title: "Sepia Effect",
+    description: "Apply vintage sepia tone effects with adjustable intensity",
+    icon: "/window.svg",
+    href: "/tools/image/sepia",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.1,
+    usageCount: 3450,
+    estimatedTime: "3s",
+    quickActions: [
+      { label: "Light Sepia", action: () => console.log("Light sepia") },
+      { label: "Strong Sepia", action: () => console.log("Strong sepia") }
+    ]
+  },
+  {
+    title: "Negative Effect",
+    description: "Create negative/inverted color effects for artistic images",
+    icon: "/window.svg",
+    href: "/tools/image/negative",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.0,
+    usageCount: 2890,
+    estimatedTime: "3s",
+    quickActions: [
+      { label: "Full Negative", action: () => console.log("Full negative") },
+      { label: "Preserve Alpha", action: () => console.log("Preserve alpha") }
+    ]
+  },
+  {
+    title: "Round Corners",
+    description: "Add rounded corners to images with customizable radius and styles",
+    icon: "/window.svg",
+    href: "/tools/image/round-corners",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.2,
+    usageCount: 4560,
+    estimatedTime: "5s",
+    quickActions: [
+      { label: "Subtle Rounds", action: () => console.log("Subtle rounds") },
+      { label: "Circle", action: () => console.log("Circle") }
+    ]
+  },
+  {
+    title: "Image Metadata",
+    description: "Extract, remove, or modify image metadata and EXIF information",
+    icon: "/window.svg",
+    href: "/tools/image/metadata",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.1,
+    usageCount: 3780,
+    estimatedTime: "2s",
+    quickActions: [
+      { label: "Extract Info", action: () => console.log("Extract metadata") },
+      { label: "Remove All", action: () => console.log("Remove metadata") }
+    ]
+  },
+  {
+    title: "Image Collage",
+    description: "Create beautiful collages from multiple images with various layouts",
+    icon: "/window.svg",
+    href: "/tools/image/collage",
+    category: "Image Tools",
+    isNew: true,
+    rating: 4.6,
+    usageCount: 9230,
+    estimatedTime: "20s",
+    quickActions: [
+      { label: "Grid Layout", action: () => console.log("Grid collage") },
+      { label: "Custom Layout", action: () => console.log("Custom collage") }
+    ]
   }
 ]
 
 const categories = [
   { name: "All Tools", icon: <Image className="h-4 w-4" />, count: imageTools.length },
-  { name: "Convert", icon: <FileImage className="h-4 w-4" />, count: 1 },
-  { name: "Resize & Crop", icon: <Crop className="h-4 w-4" />, count: 1 },
-  { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 1 },
-  { name: "Effects", icon: <Palette className="h-4 w-4" />, count: 2 },
-  { name: "AI Tools", icon: <Sparkles className="h-4 w-4" />, count: 2 }
+  { name: "Convert", icon: <FileImage className="h-4 w-4" />, count: 2 },
+  { name: "Transform", icon: <Crop className="h-4 w-4" />, count: 5 },
+  { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 2 },
+  { name: "Effects", icon: <Palette className="h-4 w-4" />, count: 8 },
+  { name: "AI Tools", icon: <Sparkles className="h-4 w-4" />, count: 3 },
+  { name: "Utilities", icon: <Settings className="h-4 w-4" />, count: 2 }
 ]
 
 const features = [

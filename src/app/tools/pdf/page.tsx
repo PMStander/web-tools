@@ -114,6 +114,66 @@ const pdfTools = [
       { label: "Extract Text", action: () => console.log("Extract text") },
       { label: "Searchable PDF", action: () => console.log("Make searchable") }
     ]
+  },
+  {
+    title: "PDF Convert",
+    description: "Convert PDFs to Word, Excel, PowerPoint, images, and more formats",
+    icon: "/file.svg",
+    href: "/tools/pdf/convert",
+    category: "PDF Tools",
+    isNew: true,
+    rating: 4.7,
+    usageCount: 8950,
+    estimatedTime: "30s",
+    quickActions: [
+      { label: "To Word", action: () => console.log("Convert to Word") },
+      { label: "To Images", action: () => console.log("Convert to Images") }
+    ]
+  },
+  {
+    title: "Add Watermark",
+    description: "Add text or image watermarks to PDF pages with custom positioning",
+    icon: "/file.svg",
+    href: "/tools/pdf/watermark",
+    category: "PDF Tools",
+    isNew: true,
+    rating: 4.6,
+    usageCount: 6780,
+    estimatedTime: "20s",
+    quickActions: [
+      { label: "Text Watermark", action: () => console.log("Add text watermark") },
+      { label: "Image Watermark", action: () => console.log("Add image watermark") }
+    ]
+  },
+  {
+    title: "Extract Text",
+    description: "Extract text content from PDF documents in multiple formats",
+    icon: "/file.svg",
+    href: "/tools/pdf/extract-text",
+    category: "PDF Tools",
+    isNew: true,
+    rating: 4.5,
+    usageCount: 5420,
+    estimatedTime: "15s",
+    quickActions: [
+      { label: "Plain Text", action: () => console.log("Extract as text") },
+      { label: "Structured JSON", action: () => console.log("Extract as JSON") }
+    ]
+  },
+  {
+    title: "Rotate Pages",
+    description: "Rotate PDF pages to correct orientation with smart detection",
+    icon: "/file.svg",
+    href: "/tools/pdf/rotate",
+    category: "PDF Tools",
+    isNew: true,
+    rating: 4.4,
+    usageCount: 4230,
+    estimatedTime: "10s",
+    quickActions: [
+      { label: "90° Clockwise", action: () => console.log("Rotate 90°") },
+      { label: "Auto Detect", action: () => console.log("Auto detect rotation") }
+    ]
   }
 ]
 
@@ -122,8 +182,9 @@ const categories = [
   { name: "Merge & Split", icon: <Merge className="h-4 w-4" />, count: 2 },
   { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 1 },
   { name: "Security", icon: <Shield className="h-4 w-4" />, count: 1 },
-  { name: "Convert", icon: <FileImage className="h-4 w-4" />, count: 1 },
-  { name: "Extract", icon: <Type className="h-4 w-4" />, count: 1 }
+  { name: "Convert", icon: <FileImage className="h-4 w-4" />, count: 2 },
+  { name: "Extract", icon: <Type className="h-4 w-4" />, count: 3 },
+  { name: "Edit", icon: <Type className="h-4 w-4" />, count: 2 }
 ]
 
 const features = [
@@ -152,8 +213,8 @@ const features = [
 export default function PDFToolsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All Tools")
   
-  const filteredTools = selectedCategory === "All Tools" 
-    ? pdfTools 
+  const filteredTools = selectedCategory === "All Tools"
+    ? pdfTools
     : pdfTools.filter(tool => {
         switch (selectedCategory) {
           case "Merge & Split":
@@ -163,9 +224,11 @@ export default function PDFToolsPage() {
           case "Security":
             return tool.title.includes("Protect")
           case "Convert":
-            return tool.title.includes("to Images")
+            return tool.title.includes("to Images") || tool.title.includes("Convert")
           case "Extract":
-            return tool.title.includes("OCR")
+            return tool.title.includes("OCR") || tool.title.includes("Extract")
+          case "Edit":
+            return tool.title.includes("Watermark") || tool.title.includes("Rotate")
           default:
             return true
         }

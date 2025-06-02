@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
-import { spawn } from 'child_process'
+import { existsSync } from 'fs'
+import ffmpeg from 'fluent-ffmpeg'
+import ffmpegStatic from 'ffmpeg-static'
+import ffprobeStatic from 'ffprobe-static'
+
+// Set FFmpeg and FFprobe paths
+if (ffmpegStatic) {
+  ffmpeg.setFfmpegPath(ffmpegStatic)
+}
+if (ffprobeStatic.path) {
+  ffmpeg.setFfprobePath(ffprobeStatic.path)
+}
 
 interface VideoConvertRequest {
   fileId: string
@@ -39,28 +50,22 @@ const QUALITY_PRESETS = {
 }
 
 async function ensureOutputDir() {
-  try {
-    const { mkdir } = await import('fs/promises')
+  if (!existsSync(OUTPUT_DIR)) {
     await mkdir(OUTPUT_DIR, { recursive: true })
-  } catch (error) {
-    console.error('Failed to create output directory:', error)
   }
 }
 
-// Convert video using FFmpeg (simulated for demo)
+// Convert video using FFmpeg
 async function convertVideo(
   inputPath: string,
   outputPath: string,
   options: VideoConvertRequest
 ): Promise<{ success: boolean; error?: string }> {
   return new Promise((resolve) => {
-    // In production, this would use actual FFmpeg
-    // For demo purposes, we'll simulate the conversion
-    
     const quality = options.quality || 'medium'
     const preset = QUALITY_PRESETS[quality]
-    
-    console.log('Simulating video conversion with options:', {
+
+    console.log('Converting video with FFmpeg:', {
       input: inputPath,
       output: outputPath,
       format: options.outputFormat,
@@ -69,23 +74,64 @@ async function convertVideo(
       fps: options.fps,
       codec: options.codec
     })
-    
-    // Simulate processing time
-    setTimeout(async () => {
-      try {
-        // For demo, copy the input file to output with new extension
-        const inputBuffer = await readFile(inputPath)
-        await writeFile(outputPath, inputBuffer)
-        
-        resolve({ success: true })
-      } catch (error) {
-        resolve({ success: false, error: 'Conversion failed' })
+
+    let command = ffmpeg(inputPath)
+
+    // Set output format
+    command = command.format(options.outputFormat)
+
+    // Set video codec
+    if (options.codec) {
+      const codecMap = {
+        'h264': 'libx264',
+        'h265': 'libx265',
+        'vp9': 'libvpx-vp9',
+        'av1': 'libaom-av1'
       }
-    }, 3000) // Simulate 3 second processing
+      command = command.videoCodec(codecMap[options.codec] || 'libx264')
+    }
+
+    // Set quality/bitrate
+    if (options.bitrate) {
+      command = command.videoBitrate(options.bitrate)
+    } else {
+      command = command.addOption('-crf', preset.crf)
+    }
+
+    // Set resolution
+    if (options.resolution) {
+      command = command.size(options.resolution)
+    }
+
+    // Set FPS
+    if (options.fps) {
+      command = command.fps(options.fps)
+    }
+
+    // Set preset for encoding speed vs compression
+    command = command.addOption('-preset', preset.preset)
+
+    // Execute conversion
+    command
+      .on('start', (commandLine) => {
+        console.log('FFmpeg command:', commandLine)
+      })
+      .on('progress', (progress) => {
+        console.log('Processing: ' + progress.percent + '% done')
+      })
+      .on('end', () => {
+        console.log('Video conversion completed successfully')
+        resolve({ success: true })
+      })
+      .on('error', (err) => {
+        console.error('FFmpeg error:', err.message)
+        resolve({ success: false, error: err.message })
+      })
+      .save(outputPath)
   })
 }
 
-// Get video metadata (simulated)
+// Get video metadata using FFprobe
 async function getVideoMetadata(filePath: string): Promise<{
   duration: number
   width: number
@@ -95,18 +141,32 @@ async function getVideoMetadata(filePath: string): Promise<{
   codec: string
   size: number
 }> {
-  // In production, use ffprobe to get actual metadata
-  const stats = await import('fs/promises').then(fs => fs.stat(filePath))
-  
-  return {
-    duration: 120, // 2 minutes (simulated)
-    width: 1920,
-    height: 1080,
-    fps: 30,
-    bitrate: '5M',
-    codec: 'h264',
-    size: stats.size
-  }
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, async (err, metadata) => {
+      if (err) {
+        reject(err)
+        return
+      }
+
+      const videoStream = metadata.streams.find(stream => stream.codec_type === 'video')
+      const stats = await import('fs/promises').then(fs => fs.stat(filePath))
+
+      if (!videoStream) {
+        reject(new Error('No video stream found'))
+        return
+      }
+
+      resolve({
+        duration: metadata.format.duration || 0,
+        width: videoStream.width || 0,
+        height: videoStream.height || 0,
+        fps: eval(videoStream.r_frame_rate || '0') || 0,
+        bitrate: metadata.format.bit_rate ? `${Math.round(parseInt(metadata.format.bit_rate) / 1000)}k` : '0k',
+        codec: videoStream.codec_name || 'unknown',
+        size: stats.size
+      })
+    })
+  })
 }
 
 export async function POST(request: NextRequest) {
