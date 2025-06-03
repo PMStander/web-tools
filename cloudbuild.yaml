@@ -1,0 +1,52 @@
+# Google Cloud Build configuration for Web Tools Platform
+# Builds and deploys the Docker container to Google Cloud Run
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', 'gcr.io/$PROJECT_ID/web-tools:$BUILD_ID',
+      '-t', 'gcr.io/$PROJECT_ID/web-tools:latest',
+      '.'
+    ]
+
+  # Push the Docker image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/web-tools:$BUILD_ID']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/web-tools:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'run', 'deploy', 'web-tools',
+      '--image', 'gcr.io/$PROJECT_ID/web-tools:$BUILD_ID',
+      '--region', 'us-central1',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--memory', '2Gi',
+      '--cpu', '2',
+      '--max-instances', '100',
+      '--min-instances', '1',
+      '--concurrency', '80',
+      '--timeout', '300',
+      '--port', '3000',
+      '--set-env-vars', 'NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1'
+    ]
+
+# Store images in Google Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/web-tools:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/web-tools:latest'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: '100'
+  logging: CLOUD_LOGGING_ONLY
+
+# Timeout for the entire build
+timeout: '1200s'
