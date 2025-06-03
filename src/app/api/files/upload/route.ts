@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
+import { writeFile, mkdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import crypto from 'crypto'
@@ -47,22 +47,57 @@ async function ensureUploadDir() {
 // Validate file type and size
 function validateFile(file: File): string[] {
   const errors: string[] = []
-  
-  // Check file size
+
+  // Check if file exists and has content
+  if (!file || file.size === 0) {
+    errors.push('File is empty or corrupted')
+    return errors
+  }
+
+  // Check file size limits
   if (file.size > MAX_FILE_SIZE) {
-    errors.push(`File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`)
+    errors.push(`File size exceeds ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB limit`)
   }
-  
+
+  // Check minimum file size (1KB)
+  if (file.size < 1024) {
+    errors.push('File is too small (minimum 1KB required)')
+  }
+
+  // Check file name
+  if (!file.name || file.name.trim().length === 0) {
+    errors.push('File name is required')
+  } else {
+    // Check for dangerous file names
+    const dangerousPatterns = [/\.\./g, /[<>:"|?*]/g, /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i]
+    if (dangerousPatterns.some(pattern => pattern.test(file.name))) {
+      errors.push('File name contains invalid characters')
+    }
+
+    // Check file name length
+    if (file.name.length > 255) {
+      errors.push('File name is too long (maximum 255 characters)')
+    }
+  }
+
   // Check file type
-  if (!ALLOWED_TYPES[file.type as keyof typeof ALLOWED_TYPES]) {
-    errors.push(`File type ${file.type} is not supported`)
+  if (!file.type) {
+    errors.push('File MIME type is missing')
+  } else if (!ALLOWED_TYPES[file.type as keyof typeof ALLOWED_TYPES]) {
+    const supportedTypes = Object.keys(ALLOWED_TYPES).join(', ')
+    errors.push(`File type ${file.type} is not supported. Supported types: ${supportedTypes}`)
   }
-  
-  // Check for empty files
-  if (file.size === 0) {
-    errors.push('File is empty')
+
+  // Check file extension
+  const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
+  const allowedExtensions = Object.values(ALLOWED_TYPES).flat()
+
+  if (!fileExtension || fileExtension === '.') {
+    errors.push('File must have a valid extension')
+  } else if (!allowedExtensions.includes(fileExtension)) {
+    errors.push(`File extension ${fileExtension} is not supported. Allowed extensions: ${allowedExtensions.join(', ')}`)
   }
-  
+
   return errors
 }
 
@@ -138,33 +173,39 @@ export async function POST(request: NextRequest) {
     const secureFileName = generateSecureFileName(file.name, file.type)
     const uploadPath = join(UPLOAD_DIR, secureFileName)
     
-    // Write file to disk
-    await writeFile(uploadPath, buffer)
-    
-    // Generate file ID for tracking
+    // Generate file ID for tracking (use as filename for easier lookup)
     const fileId = uuidv4()
-    
-    // In production, save file metadata to database
+    const finalFileName = `${fileId}_${file.name}`
+    const finalUploadPath = join(UPLOAD_DIR, finalFileName)
+
+    // Write file to disk with fileId as part of filename
+    await writeFile(finalUploadPath, buffer)
+
+    // Save file metadata to a simple JSON file (in production, use database)
     const fileMetadata = {
       fileId,
       originalName: file.name,
-      secureFileName,
+      fileName: finalFileName,
       mimeType: file.type,
       size: file.size,
-      uploadPath,
+      uploadPath: finalUploadPath,
       uploadedAt: new Date().toISOString(),
       status: 'uploaded'
     }
-    
+
+    // Save metadata to JSON file for lookup
+    const metadataPath = join(UPLOAD_DIR, `${fileId}.json`)
+    await writeFile(metadataPath, JSON.stringify(fileMetadata, null, 2))
+
     console.log('File uploaded:', fileMetadata)
-    
+
     return NextResponse.json<UploadResponse>({
       success: true,
       fileId,
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
-      uploadPath: secureFileName
+      uploadPath: finalFileName
     })
     
   } catch (error) {
@@ -181,21 +222,31 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const fileId = searchParams.get('fileId')
-    
+
     if (!fileId) {
       return NextResponse.json({
         success: false,
         error: 'File ID required'
       }, { status: 400 })
     }
-    
-    // In production, retrieve file metadata from database
-    // For now, return placeholder response
-    return NextResponse.json({
-      success: true,
-      message: 'File retrieval endpoint - implement database lookup'
-    })
-    
+
+    // Retrieve file metadata from JSON file
+    const metadataPath = join(UPLOAD_DIR, `${fileId}.json`)
+    try {
+      const metadataBuffer = await readFile(metadataPath)
+      const metadata = JSON.parse(metadataBuffer.toString())
+
+      return NextResponse.json({
+        success: true,
+        data: metadata
+      })
+    } catch (error) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
+
   } catch (error) {
     console.error('File retrieval error:', error)
     return NextResponse.json({

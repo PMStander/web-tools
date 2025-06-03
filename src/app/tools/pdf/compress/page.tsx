@@ -61,42 +61,94 @@ export default function PDFCompressPage() {
     originalSize: number
     compressedSize: number
     reduction: number
+    downloadUrl?: string
   } | null>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const [fileId, setFileId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Track when component is mounted to prevent hydration issues
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     setUploadedFile(file)
     setCompressionResult(null)
+    setError(null)
+
+    try {
+      // Upload file to server
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const uploadResponse = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file')
+      }
+
+      const uploadResult = await uploadResponse.json()
+      if (uploadResult.success) {
+        setFileId(uploadResult.fileId)
+      } else {
+        throw new Error(uploadResult.error || 'Upload failed')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      setError(error instanceof Error ? error.message : 'Upload failed')
+    }
   }
 
   const handleCompress = async () => {
-    if (!uploadedFile) return
-    
+    if (!fileId) return
+
     setIsProcessing(true)
-    
-    // Simulate compression
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    
-    // Mock compression results
-    const originalSize = uploadedFile.size
-    const reductionPercent = compressionLevel === "low" ? 15 :
-                           compressionLevel === "medium" ? 40 :
-                           compressionLevel === "high" ? 60 : 75
-    
-    const compressedSize = originalSize * (1 - reductionPercent / 100)
-    
-    setCompressionResult({
-      originalSize,
-      compressedSize,
-      reduction: reductionPercent
-    })
-    
-    setIsProcessing(false)
+    setError(null)
+
+    try {
+      const compressRequest = {
+        fileId,
+        compressionLevel,
+        options: {
+          optimizeImages: true,
+          removeMetadata: compressionLevel === 'maximum',
+          compressFonts: compressionLevel !== 'low'
+        }
+      }
+
+      const response = await fetch('/api/tools/pdf/compress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(compressRequest)
+      })
+
+      if (!response.ok) {
+        throw new Error('Compression failed')
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setCompressionResult({
+          originalSize: result.originalSize,
+          compressedSize: result.compressedSize,
+          reduction: result.compressionRatio,
+          downloadUrl: result.downloadUrl
+        })
+      } else {
+        throw new Error(result.error || 'Compression failed')
+      }
+    } catch (error) {
+      console.error('Compression error:', error)
+      setError(error instanceof Error ? error.message : 'Compression failed')
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (

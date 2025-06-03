@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import { existsSync } from 'fs'
+// Dynamic imports to avoid test file issues
 
 interface ConvertRequest {
   fileId: string
@@ -31,6 +32,7 @@ interface ConvertResponse {
 
 const UPLOAD_DIR = join(process.cwd(), 'uploads')
 const OUTPUT_DIR = join(process.cwd(), 'outputs')
+const TEMP_DIR = join(process.cwd(), 'temp')
 
 async function ensureOutputDir() {
   if (!existsSync(OUTPUT_DIR)) {
@@ -38,41 +40,71 @@ async function ensureOutputDir() {
   }
 }
 
-// Convert PDF to text
+async function ensureTempDir() {
+  if (!existsSync(TEMP_DIR)) {
+    await mkdir(TEMP_DIR, { recursive: true })
+  }
+}
+
+// Helper function to find uploaded file by ID
+async function findUploadedFile(fileId: string): Promise<string | null> {
+  // First try to find metadata file
+  const metadataPath = join(UPLOAD_DIR, `${fileId}.json`)
+  try {
+    const metadataBuffer = await readFile(metadataPath)
+    const metadata = JSON.parse(metadataBuffer.toString())
+    return metadata.uploadPath
+  } catch (error) {
+    // Fallback: search for file starting with fileId
+    try {
+      const { readdir } = await import('fs/promises')
+      const files = await readdir(UPLOAD_DIR)
+      const matchingFile = files.find(file => file.startsWith(fileId))
+      if (matchingFile) {
+        return join(UPLOAD_DIR, matchingFile)
+      }
+    } catch (dirError) {
+      console.error('Error reading upload directory:', dirError)
+    }
+  }
+  return null
+}
+
+// Convert PDF to text using pdf-parse
 async function convertPDFToText(filePath: string, options: ConvertRequest['options'] = {}): Promise<Buffer> {
   const fileBuffer = await readFile(filePath)
-  const pdfDoc = await PDFDocument.load(fileBuffer)
-  
+
+  // Dynamic import to avoid test file issue
+  const pdfParse = require('pdf-parse')
+
+  // Use pdf-parse for actual text extraction
+  const pdfData = await pdfParse(fileBuffer)
+
   let extractedText = ''
-  const pageCount = pdfDoc.getPageCount()
-  
-  // Note: pdf-lib doesn't have built-in text extraction
-  // In production, you would use libraries like pdf-parse or pdf2pic + OCR
-  // For now, we'll create a placeholder implementation
-  
+
   if (options.includeMetadata) {
+    const pdfDoc = await PDFDocument.load(fileBuffer)
     extractedText += `Document Title: ${pdfDoc.getTitle() || 'Untitled'}\n`
     extractedText += `Author: ${pdfDoc.getAuthor() || 'Unknown'}\n`
-    extractedText += `Pages: ${pageCount}\n`
+    extractedText += `Pages: ${pdfData.numpages}\n`
     extractedText += `Created: ${pdfDoc.getCreationDate()?.toISOString() || 'Unknown'}\n\n`
   }
-  
-  // Placeholder text extraction
-  for (let i = 0; i < pageCount; i++) {
-    extractedText += `--- Page ${i + 1} ---\n`
-    extractedText += `[Text content from page ${i + 1} would be extracted here]\n`
-    extractedText += `[In production, use pdf-parse or similar library for actual text extraction]\n\n`
-  }
-  
+
+  // Add extracted text
+  extractedText += pdfData.text
+
   return Buffer.from(extractedText, 'utf-8')
 }
 
-// Convert PDF to HTML
+// Convert PDF to HTML using pdf-parse
 async function convertPDFToHTML(filePath: string, options: ConvertRequest['options'] = {}): Promise<Buffer> {
   const fileBuffer = await readFile(filePath)
+
+  // Dynamic import to avoid test file issue
+  const pdfParse = require('pdf-parse')
+  const pdfData = await pdfParse(fileBuffer)
   const pdfDoc = await PDFDocument.load(fileBuffer)
-  const pageCount = pdfDoc.getPageCount()
-  
+
   let html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -81,8 +113,7 @@ async function convertPDFToHTML(filePath: string, options: ConvertRequest['optio
     <title>${pdfDoc.getTitle() || 'Converted PDF'}</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-        .page { margin-bottom: 40px; padding: 20px; border: 1px solid #ddd; }
-        .page-header { font-weight: bold; color: #666; margin-bottom: 20px; }
+        .content { margin-bottom: 40px; padding: 20px; border: 1px solid #ddd; }
         ${options.preserveFormatting ? '.formatted { white-space: pre-wrap; }' : ''}
     </style>
 </head>
@@ -93,46 +124,84 @@ async function convertPDFToHTML(filePath: string, options: ConvertRequest['optio
     html += `    <div class="metadata">
         <h1>${pdfDoc.getTitle() || 'Untitled Document'}</h1>
         <p><strong>Author:</strong> ${pdfDoc.getAuthor() || 'Unknown'}</p>
-        <p><strong>Pages:</strong> ${pageCount}</p>
+        <p><strong>Pages:</strong> ${pdfData.numpages}</p>
         <p><strong>Created:</strong> ${pdfDoc.getCreationDate()?.toISOString() || 'Unknown'}</p>
     </div>
 `
   }
 
-  for (let i = 0; i < pageCount; i++) {
-    html += `    <div class="page">
-        <div class="page-header">Page ${i + 1}</div>
+  // Convert text to HTML paragraphs
+  const textContent = pdfData.text
+  const paragraphs = textContent.split('\n\n').filter(p => p.trim().length > 0)
+
+  html += `    <div class="content">
         <div class="${options.preserveFormatting ? 'formatted' : ''}">
-            [Content from page ${i + 1} would be extracted and formatted here]
-            [In production, use pdf-parse or similar library for actual content extraction]
-        </div>
-    </div>
 `
+
+  for (const paragraph of paragraphs) {
+    const cleanParagraph = paragraph.replace(/\n/g, '<br>').trim()
+    if (cleanParagraph) {
+      html += `            <p>${cleanParagraph}</p>\n`
+    }
   }
 
-  html += `</body>
+  html += `        </div>
+    </div>
+</body>
 </html>`
 
   return Buffer.from(html, 'utf-8')
 }
 
-// Convert PDF to images (placeholder implementation)
-async function convertPDFToImages(filePath: string, options: ConvertRequest['options'] = {}): Promise<Buffer[]> {
+// Convert PDF to images using pdf2pic
+async function convertPDFToImages(filePath: string, options: ConvertRequest['options'] = {}): Promise<Buffer> {
+  await ensureTempDir()
+
   const fileBuffer = await readFile(filePath)
   const pdfDoc = await PDFDocument.load(fileBuffer)
   const pageCount = pdfDoc.getPageCount()
-  
-  // Note: This is a placeholder implementation
-  // In production, you would use libraries like pdf2pic or pdf-poppler
-  const imageBuffers: Buffer[] = []
-  
-  for (let i = 0; i < pageCount; i++) {
-    // Placeholder: Create a simple text-based "image" representation
-    const imageText = `Page ${i + 1} Image Placeholder\n[In production, this would be an actual ${options.imageFormat || 'png'} image]`
-    imageBuffers.push(Buffer.from(imageText, 'utf-8'))
+
+  // Dynamic import to avoid test file issue
+  const { pdf2pic } = require('pdf2pic')
+  const archiver = require('archiver')
+
+  // Convert PDF pages to images using pdf2pic
+  const convert = pdf2pic.fromPath(filePath, {
+    density: 300,
+    saveFilename: "page",
+    savePath: TEMP_DIR,
+    format: options.imageFormat === 'jpg' ? 'jpeg' : (options.imageFormat || 'png'),
+    width: 2000,
+    height: 2000
+  })
+
+  // Create a ZIP file containing all images
+  const archive = archiver('zip', { zlib: { level: 9 } })
+  const chunks: Buffer[] = []
+
+  archive.on('data', (chunk) => chunks.push(chunk))
+
+  // Convert each page and add to ZIP
+  for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+    try {
+      const pageImage = await convert(pageNum, { responseType: "buffer" })
+
+      if (pageImage.buffer) {
+        const fileName = `page-${pageNum.toString().padStart(3, '0')}.${options.imageFormat || 'png'}`
+        archive.append(pageImage.buffer, { name: fileName })
+      }
+    } catch (pageError) {
+      console.error(`Error converting page ${pageNum}:`, pageError)
+      // Add error placeholder
+      const errorText = `Error converting page ${pageNum}`
+      archive.append(Buffer.from(errorText), { name: `page-${pageNum.toString().padStart(3, '0')}-error.txt` })
+    }
   }
-  
-  return imageBuffers
+
+  // Finalize the archive
+  await archive.finalize()
+
+  return Buffer.concat(chunks)
 }
 
 export async function POST(request: NextRequest) {
@@ -166,8 +235,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
-    
+    const inputPath = await findUploadedFile(fileId)
+    if (!inputPath) {
+      return NextResponse.json<ConvertResponse>({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
+
     // Validate PDF file
     let pdfDoc: PDFDocument
     try {
@@ -200,10 +275,8 @@ export async function POST(request: NextRequest) {
         break
         
       case 'images':
-        // For images, we'll create a ZIP file containing all page images
-        // This is a simplified implementation
-        const imageBuffers = await convertPDFToImages(inputPath, options)
-        convertedBuffer = Buffer.concat(imageBuffers)
+        // Convert to images and create ZIP file
+        convertedBuffer = await convertPDFToImages(inputPath, options)
         fileExtension = 'zip'
         mimeType = 'application/zip'
         break
@@ -286,8 +359,14 @@ export async function GET(request: NextRequest) {
     }, { status: 400 })
   }
   
-  const inputPath = join(UPLOAD_DIR, fileId)
-  
+  const inputPath = await findUploadedFile(fileId)
+  if (!inputPath) {
+    return NextResponse.json({
+      success: false,
+      error: 'File not found'
+    }, { status: 404 })
+  }
+
   try {
     const fileBuffer = await readFile(inputPath)
     const pdfDoc = await PDFDocument.load(fileBuffer)

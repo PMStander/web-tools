@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { AlertTriangle, CheckCircle, XCircle, Activity, Database, Zap } from 'lucide-react'
-
+ 
 interface CacheMetrics {
   hitRate: number
   responseTime: number

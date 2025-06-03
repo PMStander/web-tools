@@ -16,9 +16,16 @@ export function formatFileSize(bytes: number): string {
 
 // Shared file icon utility to prevent hydration issues
 export function getFileIcon(fileType: string | undefined | null): string {
-  if (!fileType || typeof fileType !== 'string') return 'File'
-  if (fileType.startsWith('image/')) return 'Image'
-  if (fileType.startsWith('video/')) return 'Video'
-  if (fileType.includes('pdf') || fileType.includes('document')) return 'FileText'
+  // More robust null/undefined checking
+  if (!fileType || typeof fileType !== 'string' || fileType.length === 0) {
+    return 'File'
+  }
+
+  // Ensure we have a valid string before calling string methods
+  const safeFileType = String(fileType).toLowerCase()
+
+  if (safeFileType.startsWith('image/')) return 'Image'
+  if (safeFileType.startsWith('video/')) return 'Video'
+  if (safeFileType.includes('pdf') || safeFileType.includes('document')) return 'FileText'
   return 'File'
 }

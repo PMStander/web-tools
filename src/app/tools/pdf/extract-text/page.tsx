@@ -28,23 +28,122 @@ export default function PDFExtractTextPage() {
   const [preserveFormatting, setPreserveFormatting] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [fileId, setFileId] = useState<string | null>(null)
+  const [extractionResult, setExtractionResult] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Track when component is mounted to prevent hydration issues
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     setUploadedFile(file)
+    setError(null)
+    setExtractionResult(null)
+
+    try {
+      // Upload file to server
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const uploadResponse = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file')
+      }
+
+      const uploadResult = await uploadResponse.json()
+      if (uploadResult.success) {
+        setFileId(uploadResult.fileId)
+      } else {
+        throw new Error(uploadResult.error || 'Upload failed')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      setError(error instanceof Error ? error.message : 'Upload failed')
+    }
   }
 
   const handleExtract = async () => {
-    if (!uploadedFile) return
-    
+    if (!fileId) return
+
     setIsProcessing(true)
-    // Simulate processing
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    setIsProcessing(false)
+    setError(null)
+
+    try {
+      // Prepare extraction request
+      const extractRequest = {
+        fileId,
+        pages: extractMode === 'all' ? 'all' :
+               extractMode === 'first' ? 'first' :
+               extractMode === 'last' ? 'last' : 'range',
+        pageRange: extractMode === 'range' && pageRange ?
+          parsePageRange(pageRange) : undefined,
+        outputFormat: outputFormat === 'text' ? 'txt' :
+                     outputFormat === 'word' ? 'txt' : // Word not implemented yet
+                     outputFormat,
+        options: {
+          preserveFormatting,
+          includeMetadata: true,
+          splitByPages: extractMode !== 'all'
+        }
+      }
+
+      const response = await fetch('/api/tools/pdf/extract-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(extractRequest)
+      })
+
+      if (!response.ok) {
+        throw new Error('Extraction failed')
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setExtractionResult(result)
+      } else {
+        throw new Error(result.error || 'Extraction failed')
+      }
+    } catch (error) {
+      console.error('Extraction error:', error)
+      setError(error instanceof Error ? error.message : 'Extraction failed')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const parsePageRange = (range: string) => {
+    // Simple page range parser (e.g., "1-5, 10, 15-20")
+    const parts = range.split(',').map(part => part.trim())
+    const result: { start: number; end: number } = { start: 1, end: 1 }
+
+    if (parts.length > 0) {
+      const firstPart = parts[0]
+      if (firstPart.includes('-')) {
+        const [start, end] = firstPart.split('-').map(n => parseInt(n.trim()))
+        result.start = start || 1
+        result.end = end || start || 1
+      } else {
+        const page = parseInt(firstPart)
+        result.start = page || 1
+        result.end = page || 1
+      }
+    }
+
+    return result
+  }
+
+  const handleDownload = () => {
+    if (extractionResult?.downloadUrl) {
+      window.open(extractionResult.downloadUrl + '&download=true', '_blank')
+    }
   }
 
   return (
@@ -92,10 +191,17 @@ export default function PDFExtractTextPage() {
                       acceptedTypes={['.pdf']}
                       maxSize={100 * 1024 * 1024}
                     />
-                    {uploadedFile && (
+                    {uploadedFile && !error && (
                       <div className="mt-4 flex items-center gap-2 text-green-600">
                         <CheckCircle className="h-5 w-5" />
                         <span>File uploaded: {uploadedFile.name}</span>
+                      </div>
+                    )}
+                    {error && (
+                      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                        <div className="flex items-center gap-2 text-red-700">
+                          <span className="text-sm">{error}</span>
+                        </div>
                       </div>
                     )}
                   </CardContent>
@@ -186,7 +292,7 @@ export default function PDFExtractTextPage() {
                         onClick={handleExtract}
                         className="w-full"
                         size="lg"
-                        disabled={!isMounted || isProcessing}
+                        disabled={!isMounted || isProcessing || !fileId}
                       >
                         {isProcessing ? (
                           <>Extracting Text...</>
@@ -197,6 +303,30 @@ export default function PDFExtractTextPage() {
                           </>
                         )}
                       </Button>
+
+                      {extractionResult && (
+                        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle className="h-5 w-5" />
+                              <span className="font-medium">Text extraction completed!</span>
+                            </div>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <p>Pages processed: {extractionResult.pageCount}</p>
+                              <p>Words extracted: {extractionResult.wordCount?.toLocaleString()}</p>
+                              <p>Processing time: {extractionResult.processingTime}ms</p>
+                            </div>
+                            <Button
+                              onClick={handleDownload}
+                              className="w-full"
+                              variant="outline"
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              Download Extracted Text
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}

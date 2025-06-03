@@ -4,6 +4,8 @@ import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import { existsSync } from 'fs'
+import { createWorker } from 'tesseract.js'
+const { pdf2pic } = require('pdf2pic')
 
 interface OCRRequest {
   fileId: string
@@ -44,6 +46,7 @@ interface OCRResult {
 
 const UPLOAD_DIR = join(process.cwd(), 'uploads')
 const OUTPUT_DIR = join(process.cwd(), 'outputs')
+const TEMP_DIR = join(process.cwd(), 'temp')
 
 async function ensureOutputDir() {
   if (!existsSync(OUTPUT_DIR)) {
@@ -51,55 +54,113 @@ async function ensureOutputDir() {
   }
 }
 
-// Simulate OCR processing (placeholder implementation)
+async function ensureTempDir() {
+  if (!existsSync(TEMP_DIR)) {
+    await mkdir(TEMP_DIR, { recursive: true })
+  }
+}
+
+// Helper function to find uploaded file by ID
+async function findUploadedFile(fileId: string): Promise<string | null> {
+  // First try to find metadata file
+  const metadataPath = join(UPLOAD_DIR, `${fileId}.json`)
+  try {
+    const metadataBuffer = await readFile(metadataPath)
+    const metadata = JSON.parse(metadataBuffer.toString())
+    return metadata.uploadPath
+  } catch (error) {
+    // Fallback: search for file starting with fileId
+    try {
+      const { readdir } = await import('fs/promises')
+      const files = await readdir(UPLOAD_DIR)
+      const matchingFile = files.find(file => file.startsWith(fileId))
+      if (matchingFile) {
+        return join(UPLOAD_DIR, matchingFile)
+      }
+    } catch (dirError) {
+      console.error('Error reading upload directory:', dirError)
+    }
+  }
+  return null
+}
+
+// Perform real OCR processing using Tesseract.js and pdf2pic
 async function performOCR(
   filePath: string,
   language: string = 'eng',
   options: OCRRequest['options'] = {}
 ): Promise<OCRResult[]> {
-  const fileBuffer = await readFile(filePath)
-  const pdfDoc = await PDFDocument.load(fileBuffer)
-  const pageCount = pdfDoc.getPageCount()
-  
-  // Note: This is a placeholder implementation
-  // In production, you would use:
-  // - Tesseract.js for client-side OCR
-  // - Google Cloud Vision API
-  // - AWS Textract
-  // - Azure Computer Vision
-  // - pdf2pic + Tesseract for server-side processing
-  
   const results: OCRResult[] = []
-  
-  for (let i = 0; i < pageCount; i++) {
-    // Simulate OCR processing with placeholder data
-    const simulatedText = `Page ${i + 1} OCR Results\n\nThis is simulated OCR text extraction.\nIn production, this would contain the actual text extracted from the PDF page using OCR technology.\n\nLanguage: ${language}\nConfidence: ${85 + Math.random() * 10}%\n\nDetected text would include:\n- Headers and titles\n- Body paragraphs\n- Tables and lists\n- Captions and footnotes\n\nOCR Options Applied:\n${options.preserveLayout ? '- Layout preservation enabled\n' : ''}${options.enhanceImage ? '- Image enhancement enabled\n' : ''}${options.removeBackground ? '- Background removal enabled\n' : ''}${options.deskew ? '- Deskewing enabled\n' : ''}`
-    
-    const confidence = 85 + Math.random() * 10
-    
-    results.push({
-      text: simulatedText,
-      confidence,
-      words: [
-        {
-          text: 'Sample',
-          confidence: confidence,
-          bbox: { x: 100, y: 100, width: 60, height: 20 }
-        },
-        {
-          text: 'OCR',
-          confidence: confidence,
-          bbox: { x: 170, y: 100, width: 40, height: 20 }
-        },
-        {
-          text: 'Text',
-          confidence: confidence,
-          bbox: { x: 220, y: 100, width: 50, height: 20 }
-        }
-      ]
+
+  try {
+    // Ensure temp directory exists
+    await ensureTempDir()
+
+    // Convert PDF pages to images using pdf2pic
+    const convert = pdf2pic.fromPath(filePath, {
+      density: 300,           // Higher density for better OCR accuracy
+      saveFilename: "page",
+      savePath: TEMP_DIR,
+      format: "png",
+      width: 2000,
+      height: 2000
     })
+
+    // Get page count
+    const fileBuffer = await readFile(filePath)
+    const pdfDoc = await PDFDocument.load(fileBuffer)
+    const pageCount = pdfDoc.getPageCount()
+
+    // Create Tesseract worker
+    const worker = await createWorker(language)
+
+    // Process each page
+    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+      try {
+        // Convert page to image
+        const pageImage = await convert(pageNum, { responseType: "buffer" })
+
+        if (pageImage.buffer) {
+          // Perform OCR on the image
+          const { data } = await worker.recognize(pageImage.buffer)
+
+          // Extract word-level information
+          const words = data.words.map(word => ({
+            text: word.text,
+            confidence: word.confidence,
+            bbox: {
+              x: word.bbox.x0,
+              y: word.bbox.y0,
+              width: word.bbox.x1 - word.bbox.x0,
+              height: word.bbox.y1 - word.bbox.y0
+            }
+          }))
+
+          results.push({
+            text: data.text,
+            confidence: data.confidence,
+            words
+          })
+        }
+      } catch (pageError) {
+        console.error(`Error processing page ${pageNum}:`, pageError)
+        // Add empty result for failed page
+        results.push({
+          text: `[Error processing page ${pageNum}]`,
+          confidence: 0,
+          words: []
+        })
+      }
+    }
+
+    // Terminate worker
+    await worker.terminate()
+
+  } catch (error) {
+    console.error('OCR processing error:', error)
+    throw new Error(`OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
-  
+
   return results
 }
 
@@ -191,8 +252,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
-    
+    const inputPath = await findUploadedFile(fileId)
+    if (!inputPath) {
+      return NextResponse.json<OCRResponse>({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
+
     // Validate PDF file
     let pdfDoc: PDFDocument
     try {
@@ -317,8 +384,14 @@ export async function GET(request: NextRequest) {
     }, { status: 400 })
   }
   
-  const inputPath = join(UPLOAD_DIR, fileId)
-  
+  const inputPath = await findUploadedFile(fileId)
+  if (!inputPath) {
+    return NextResponse.json({
+      success: false,
+      error: 'File not found'
+    }, { status: 404 })
+  }
+
   try {
     const fileBuffer = await readFile(inputPath)
     const pdfDoc = await PDFDocument.load(fileBuffer)

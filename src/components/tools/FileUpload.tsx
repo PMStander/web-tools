@@ -5,11 +5,10 @@ import { useDropzone } from "react-dropzone"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { X, Upload, File, Image as ImageIcon, Video, FileText, AlertCircle, CheckCircle2 } from "lucide-react"
+import { X, Upload, File, Image as ImageIcon, Video, FileText, CheckCircle2 } from "lucide-react"
 import { cn, formatFileSize, getFileIcon } from "@/lib/utils"
 import Image from "next/image"
-
+ 
 interface FileUploadProps {
   // New interface (preferred)
   accept?: Record<string, string[]>
@@ -112,8 +111,12 @@ export function FileUpload({
     ? convertAcceptedTypes(acceptedTypes)
     : accept
 
-  const getFileIconComponent = (file: File) => {
-    const iconType = getFileIcon(file.type) // file.type can be undefined
+  const getFileIconComponent = (file: File | UploadedFile) => {
+    // Handle both File and UploadedFile types safely
+    if (!file) return <File className="h-4 w-4" />
+
+    const fileType = file.type || ''
+    const iconType = getFileIcon(fileType)
     switch (iconType) {
       case 'Image': return <ImageIcon className="h-4 w-4" />
       case 'Video': return <Video className="h-4 w-4" />
@@ -140,7 +143,7 @@ export function FileUpload({
       const error = validateFile(file)
       return {
         ...file,
-        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         status: error ? 'error' : 'pending',
         progress: 0,
         error,
@@ -237,12 +240,14 @@ export function FileUpload({
             <p className="text-sm text-gray-500">
               Drag & drop files here, or click to browse
             </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              <Badge variant="secondary">Max {maxFiles} files</Badge>
-              <Badge variant="secondary">Up to {formatFileSize(maxSize)}</Badge>
-              {aiValidation && <Badge variant="outline">AI Validation</Badge>}
-              {batchProcessing && <Badge variant="outline">Batch Processing</Badge>}
-            </div>
+            {isMounted && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                <Badge variant="secondary">Max {maxFiles} files</Badge>
+                <Badge variant="secondary">Up to {formatFileSize(maxSize)}</Badge>
+                {aiValidation && <Badge variant="outline">AI Validation</Badge>}
+                {batchProcessing && <Badge variant="outline">Batch Processing</Badge>}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -286,12 +291,9 @@ export function FileUpload({
                   )}
 
                   {file.status === 'error' && file.error && (
-                    <Alert className="mt-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-xs">
-                        {file.error}
-                      </AlertDescription>
-                    </Alert>
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                      {file.error}
+                    </div>
                   )}
 
                   {file.status === 'success' && (

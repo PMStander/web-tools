@@ -16,14 +16,32 @@ import {
   ArrowRight,
   Zap,
   Shield,
-  Star
+  Star,
+  AlertCircle
 } from "lucide-react"
 
+interface UploadedFile {
+  fileId: string
+  fileName: string
+  fileSize: number
+  originalFile: File
+}
+
+interface MergeResult {
+  success: boolean
+  outputFileId?: string
+  outputFileName?: string
+  downloadUrl?: string
+  error?: string
+}
+
 export default function PDFMergePage() {
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [isUploading, setIsUploading] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingProgress, setProcessingProgress] = useState(0)
-  const [mergedFile, setMergedFile] = useState<string | null>(null)
+  const [mergeResult, setMergeResult] = useState<MergeResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
 
   // Track when component is mounted to prevent hydration issues
@@ -31,8 +49,45 @@ export default function PDFMergePage() {
     setIsMounted(true)
   }, [])
 
-  const handleFileUpload = (file: File) => {
-    setUploadedFiles(prev => [...prev, file])
+  // Upload files to server and get file IDs
+  const uploadFiles = async (files: File[]) => {
+    setIsUploading(true)
+    setError(null)
+
+    try {
+      const uploadPromises = files.map(async (file) => {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${file.name}`)
+        }
+
+        const result = await response.json()
+        if (!result.success) {
+          throw new Error(result.error || `Failed to upload ${file.name}`)
+        }
+
+        return {
+          fileId: result.fileId,
+          fileName: result.fileName,
+          fileSize: result.fileSize,
+          originalFile: file
+        }
+      })
+
+      const uploadedFileData = await Promise.all(uploadPromises)
+      setUploadedFiles(prev => [...prev, ...uploadedFileData])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload files')
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const handleMerge = async () => {
@@ -40,6 +95,7 @@ export default function PDFMergePage() {
 
     setIsProcessing(true)
     setProcessingProgress(0)
+    setError(null)
 
     // Simulate processing progress
     const progressInterval = setInterval(() => {
@@ -52,17 +108,65 @@ export default function PDFMergePage() {
       })
     }, 300)
 
-    // Simulate processing
-    await new Promise(resolve => setTimeout(resolve, 3000))
+    try {
+      const response = await fetch('/api/tools/pdf/merge', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fileIds: uploadedFiles.map(f => f.fileId),
+          outputName: 'merged-document.pdf'
+        })
+      })
 
-    setProcessingProgress(100)
-    setMergedFile("merged-document.pdf")
-    setIsProcessing(false)
-    clearInterval(progressInterval)
+      if (!response.ok) {
+        throw new Error('Failed to merge PDFs')
+      }
+
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to merge PDFs')
+      }
+
+      setProcessingProgress(100)
+      setMergeResult(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to merge PDFs')
+    } finally {
+      setIsProcessing(false)
+      clearInterval(progressInterval)
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!mergeResult?.downloadUrl) return
+
+    try {
+      const response = await fetch(mergeResult.downloadUrl)
+      if (!response.ok) {
+        throw new Error('Failed to download file')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = mergeResult.outputFileName || 'merged-document.pdf'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download file')
+    }
   }
 
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index))
+    // Clear merge result if files change
+    setMergeResult(null)
+    setError(null)
   }
 
   return (
@@ -106,13 +210,19 @@ export default function PDFMergePage() {
                   </CardHeader>
                   <CardContent>
                     <FileUpload
-                      onFileSelect={handleFileUpload}
-                      acceptedTypes={['.pdf']}
+                      onUpload={uploadFiles}
+                      accept={{ 'application/pdf': ['.pdf'] }}
+                      maxFiles={10}
                       maxSize={100 * 1024 * 1024}
                     />
                     <p className="text-sm text-gray-600 mt-2">
                       Upload multiple PDF files to merge them into one document
                     </p>
+                    {isUploading && (
+                      <div className="mt-4 text-center">
+                        <p className="text-sm text-blue-600">Uploading files...</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -127,13 +237,13 @@ export default function PDFMergePage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {uploadedFiles.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div key={file.fileId} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center gap-3">
                             <FileText className="h-5 w-5 text-red-600" />
                             <div>
-                              <p className="font-medium">{file.name}</p>
+                              <p className="font-medium">{file.fileName}</p>
                               <p className="text-sm text-gray-600">
-                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                                {(file.fileSize / 1024 / 1024).toFixed(2)} MB
                               </p>
                             </div>
                           </div>
@@ -150,12 +260,12 @@ export default function PDFMergePage() {
                         </div>
                       ))}
 
-                      {uploadedFiles.length >= 2 && !isProcessing && !mergedFile && (
+                      {uploadedFiles.length >= 2 && !isProcessing && !mergeResult && (
                         <Button
                           onClick={handleMerge}
                           className="w-full"
                           size="lg"
-                          disabled={!isMounted}
+                          disabled={!isMounted || isUploading}
                         >
                           <GitMerge className="mr-2 h-5 w-5" />
                           Merge {uploadedFiles.length} PDFs
@@ -182,8 +292,21 @@ export default function PDFMergePage() {
                   </Card>
                 )}
 
+                {/* Error Display */}
+                {error && (
+                  <Card className="border-red-200 bg-red-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-2 text-red-700">
+                        <AlertCircle className="h-5 w-5" />
+                        <p className="font-medium">Error</p>
+                      </div>
+                      <p className="text-red-600 mt-2">{error}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Success Result */}
-                {mergedFile && (
+                {mergeResult && (
                   <Card className="border-green-200 bg-green-50">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-green-700">
@@ -195,7 +318,11 @@ export default function PDFMergePage() {
                       <p className="text-green-600">
                         Successfully merged {uploadedFiles.length} PDF files into one document.
                       </p>
-                      <Button className="w-full" size="lg">
+                      <Button
+                        className="w-full"
+                        size="lg"
+                        onClick={handleDownload}
+                      >
                         <Download className="mr-2 h-5 w-5" />
                         Download Merged PDF
                       </Button>
@@ -203,9 +330,10 @@ export default function PDFMergePage() {
                         variant="outline"
                         className="w-full"
                         onClick={() => {
-                          setMergedFile(null)
+                          setMergeResult(null)
                           setUploadedFiles([])
                           setProcessingProgress(0)
+                          setError(null)
                         }}
                       >
                         Merge More Files
