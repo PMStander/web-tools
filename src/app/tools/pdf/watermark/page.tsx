@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/layout/Header"
 import { FileUpload } from "@/components/tools/FileUpload"
 import { Button } from "@/components/ui/button"
@@ -29,6 +29,12 @@ export default function PDFWatermarkPage() {
   const [fontSize, setFontSize] = useState("24")
   const [color, setColor] = useState("#000000")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Track when component is mounted to prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleFileUpload = (file: File) => {
     setUploadedFile(file)
@@ -225,11 +231,11 @@ export default function PDFWatermarkPage() {
                         />
                       </div>
 
-                      <Button 
-                        onClick={handleWatermark} 
-                        className="w-full" 
+                      <Button
+                        onClick={handleWatermark}
+                        className="w-full"
                         size="lg"
-                        disabled={isProcessing || (watermarkType === "text" && !watermarkText)}
+                        disabled={!isMounted || isProcessing || (watermarkType === "text" && !watermarkText)}
                       >
                         {isProcessing ? (
                           <>Adding Watermark...</>

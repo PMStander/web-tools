@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/layout/Header"
 import { FileUpload } from "@/components/tools/FileUpload"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import {
   FileText,
-  Merge,
+  GitMerge,
   Download,
   Upload,
   CheckCircle,
@@ -24,6 +24,12 @@ export default function PDFMergePage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingProgress, setProcessingProgress] = useState(0)
   const [mergedFile, setMergedFile] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Track when component is mounted to prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleFileUpload = (file: File) => {
     setUploadedFiles(prev => [...prev, file])
@@ -69,7 +75,7 @@ export default function PDFMergePage() {
             <div className="text-center space-y-6">
               <div className="flex justify-center">
                 <Badge variant="outline" className="mb-4">
-                  <Merge className="mr-2 h-3 w-3" />
+                  <GitMerge className="mr-2 h-3 w-3" />
                   PDF Merging Tool
                 </Badge>
               </div>
@@ -103,7 +109,6 @@ export default function PDFMergePage() {
                       onFileSelect={handleFileUpload}
                       acceptedTypes={['.pdf']}
                       maxSize={100 * 1024 * 1024}
-                      multiple={true}
                     />
                     <p className="text-sm text-gray-600 mt-2">
                       Upload multiple PDF files to merge them into one document
@@ -146,8 +151,13 @@ export default function PDFMergePage() {
                       ))}
 
                       {uploadedFiles.length >= 2 && !isProcessing && !mergedFile && (
-                        <Button onClick={handleMerge} className="w-full" size="lg">
-                          <Merge className="mr-2 h-5 w-5" />
+                        <Button
+                          onClick={handleMerge}
+                          className="w-full"
+                          size="lg"
+                          disabled={!isMounted}
+                        >
+                          <GitMerge className="mr-2 h-5 w-5" />
                           Merge {uploadedFiles.length} PDFs
                         </Button>
                       )}
@@ -160,7 +170,7 @@ export default function PDFMergePage() {
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-center space-y-4">
-                        <Merge className="h-8 w-8 mx-auto text-red-600 animate-pulse" />
+                        <GitMerge className="h-8 w-8 mx-auto text-red-600 animate-pulse" />
                         <div>
                           <h3 className="font-semibold">Merging PDFs...</h3>
                           <p className="text-sm text-gray-600">Please wait while we combine your files</p>
@@ -288,7 +298,7 @@ export default function PDFMergePage() {
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                  <Merge className="h-8 w-8 text-red-600" />
+                  <GitMerge className="h-8 w-8 text-red-600" />
                 </div>
                 <h3 className="text-xl font-bold">Smart Merging</h3>
                 <p className="text-gray-600">

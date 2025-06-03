@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/layout/Header"
 import { FileUpload } from "@/components/tools/FileUpload"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,12 @@ export default function PDFProtectPage() {
     commenting: true
   })
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Track when component is mounted to prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleFileUpload = (file: File) => {
     setUploadedFile(file)
@@ -235,11 +241,11 @@ export default function PDFProtectPage() {
                         </TabsContent>
                       </Tabs>
 
-                      <Button 
-                        onClick={handleProtect} 
-                        className="w-full mt-6" 
+                      <Button
+                        onClick={handleProtect}
+                        className="w-full mt-6"
                         size="lg"
-                        disabled={isProcessing || !password || password !== confirmPassword}
+                        disabled={!isMounted || isProcessing || !password || password !== confirmPassword}
                       >
                         {isProcessing ? (
                           <>Processing...</>

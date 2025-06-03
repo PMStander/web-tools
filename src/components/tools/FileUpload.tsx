@@ -1,19 +1,27 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { X, Upload, File, Image, Video, FileText, AlertCircle, CheckCircle2 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { X, Upload, File, Image as ImageIcon, Video, FileText, AlertCircle, CheckCircle2 } from "lucide-react"
+import { cn, formatFileSize, getFileIcon } from "@/lib/utils"
+import Image from "next/image"
 
 interface FileUploadProps {
+  // New interface (preferred)
   accept?: Record<string, string[]>
   maxFiles?: number
   maxSize?: number // in bytes
-  onUpload: (files: File[]) => Promise<void>
+  onUpload?: (files: File[]) => Promise<void>
+
+  // Legacy interface (for backward compatibility)
+  onFileSelect?: (file: File) => void
+  acceptedTypes?: string[]
+
+  // Common props
   preview?: boolean
   aiValidation?: boolean
   batchProcessing?: boolean
@@ -28,11 +36,48 @@ interface UploadedFile extends File {
   error?: string
 }
 
+// Helper function to convert acceptedTypes to accept format
+const convertAcceptedTypes = (acceptedTypes: string[]): Record<string, string[]> => {
+  const accept: Record<string, string[]> = {}
+
+  acceptedTypes.forEach(type => {
+    if (type.startsWith('.')) {
+      // File extension
+      const mimeTypes = {
+        '.pdf': 'application/pdf',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.mp4': 'video/mp4',
+        '.avi': 'video/x-msvideo',
+        '.mov': 'video/quicktime',
+        '.webm': 'video/webm',
+        '.mkv': 'video/x-matroska'
+      }
+      const mimeType = mimeTypes[type as keyof typeof mimeTypes] || '*/*'
+      if (!accept[mimeType]) {
+        accept[mimeType] = []
+      }
+      accept[mimeType].push(type)
+    }
+  })
+
+  return accept
+}
+
 export function FileUpload({
+  // New interface props
   accept,
   maxFiles = 1,
   maxSize = 50 * 1024 * 1024, // 50MB default
   onUpload,
+
+  // Legacy interface props
+  onFileSelect,
+  acceptedTypes,
+
+  // Common props
   preview = false,
   aiValidation = false,
   batchProcessing = false,
@@ -40,61 +85,89 @@ export function FileUpload({
 }: FileUploadProps) {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [uploading, setUploading] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const [dragActive, setDragActive] = useState(false)
-  const fileIdCounter = useRef(0)
 
-  const getFileIcon = (file: File) => {
-    if (file.type.startsWith('image/')) return <Image className="h-4 w-4" />
-    if (file.type.startsWith('video/')) return <Video className="h-4 w-4" />
-    if (file.type.includes('pdf') || file.type.includes('document')) return <FileText className="h-4 w-4" />
-    return <File className="h-4 w-4" />
+  // Track when component is mounted to prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  // Cleanup preview URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      files.forEach(file => {
+        if (file.preview) {
+          URL.revokeObjectURL(file.preview)
+        }
+      })
+    }
+  }, [files])
+
+  // Determine which interface is being used
+  const isLegacyMode = !!onFileSelect && !onUpload
+
+  // Convert acceptedTypes to accept format if using legacy interface
+  const finalAccept = isLegacyMode && acceptedTypes
+    ? convertAcceptedTypes(acceptedTypes)
+    : accept
+
+  const getFileIconComponent = (file: File) => {
+    const iconType = getFileIcon(file.type) // file.type can be undefined
+    switch (iconType) {
+      case 'Image': return <ImageIcon className="h-4 w-4" />
+      case 'Video': return <Video className="h-4 w-4" />
+      case 'FileText': return <FileText className="h-4 w-4" />
+      default: return <File className="h-4 w-4" />
+    }
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  const validateFile = (file: File): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     if (file.size > maxSize) {
       return `File size exceeds ${formatFileSize(maxSize)} limit`
     }
     return null
-  }
+  }, [maxSize])
 
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (isLegacyMode && onFileSelect && acceptedFiles.length > 0) {
+      // Legacy mode: immediately call onFileSelect with the first file
+      onFileSelect(acceptedFiles[0])
+      return
+    }
+
     const newFiles: UploadedFile[] = acceptedFiles.map((file) => {
       const error = validateFile(file)
       return {
         ...file,
-        id: `file-${fileIdCounter.current++}`,
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         status: error ? 'error' : 'pending',
         progress: 0,
         error,
-        preview: preview && file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+        preview: preview && file.type && file.type.startsWith('image/') && isMounted ? URL.createObjectURL(file) : undefined
       } as UploadedFile
     })
 
     setFiles(prev => [...prev, ...newFiles])
-  }, [maxSize, preview])
+  }, [preview, isLegacyMode, onFileSelect, isMounted, validateFile])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept,
+    accept: finalAccept,
     maxFiles,
-    onDragEnter: () => setDragActive(true),
-    onDragLeave: () => setDragActive(false),
+    onDragEnter: () => isMounted && setDragActive(true),
+    onDragLeave: () => isMounted && setDragActive(false),
   })
+
+  // Use our local dragActive state for consistent hydration
+  const showDragActive = isMounted && (isDragActive || dragActive)
 
   const removeFile = (fileId: string) => {
     setFiles(prev => prev.filter(f => f.id !== fileId))
   }
 
   const handleUpload = async () => {
-    if (files.length === 0) return
+    if (files.length === 0 || !onUpload) return
 
     setUploading(true)
     const validFiles = files.filter(f => f.status !== 'error')
@@ -144,7 +217,7 @@ export function FileUpload({
         {...getRootProps()}
         className={cn(
           "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-200",
-          isDragActive
+          showDragActive
             ? "border-primary bg-primary/5 scale-105"
             : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
         )}
@@ -154,12 +227,12 @@ export function FileUpload({
           <div className="flex justify-center">
             <Upload className={cn(
               "h-12 w-12 transition-colors",
-              isDragActive ? "text-primary" : "text-gray-400"
+              showDragActive ? "text-primary" : "text-gray-400"
             )} />
           </div>
           <div className="space-y-2">
             <p className="text-lg font-medium">
-              {isDragActive ? "Drop files here" : "Upload your files"}
+              {showDragActive ? "Drop files here" : "Upload your files"}
             </p>
             <p className="text-sm text-gray-500">
               Drag & drop files here, or click to browse
@@ -174,7 +247,7 @@ export function FileUpload({
         </div>
       </div>
 
-      {files.length > 0 && (
+      {isMounted && files.length > 0 && (
         <div className="space-y-4">
           <div className="space-y-3">
             {files.map((file) => (
@@ -183,14 +256,17 @@ export function FileUpload({
                 className="flex items-center gap-3 p-4 bg-white border rounded-lg shadow-sm"
               >
                 {preview && file.preview ? (
-                  <img
+                  <Image
                     src={file.preview}
                     alt={file.name}
-                    className="h-12 w-12 object-cover rounded"
+                    width={48}
+                    height={48}
+                    className="object-cover rounded"
+                    unoptimized
                   />
                 ) : (
                   <div className="h-12 w-12 bg-gray-100 rounded flex items-center justify-center">
-                    {getFileIcon(file)}
+                    {getFileIconComponent(file)}
                   </div>
                 )}
 
@@ -239,10 +315,10 @@ export function FileUpload({
             ))}
           </div>
 
-          {files.some(f => f.status === 'pending') && (
+          {!isLegacyMode && isMounted && files.some(f => f.status === 'pending') && (
             <Button
               onClick={handleUpload}
-              disabled={uploading || files.every(f => f.status === 'error')}
+              disabled={!isMounted || uploading || files.every(f => f.status === 'error')}
               className="w-full"
               size="lg"
             >

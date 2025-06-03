@@ -4,10 +4,21 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import dynamic from "next/dynamic"
-import { FileText, Image, Video, Sparkles } from "lucide-react" // Ensure Video is here
+import { FileText, Image as ImageIcon, Video, Sparkles } from "lucide-react"
 
 const SmartNavigation = dynamic(() => import("./SmartNavigation").then((mod) => mod.SmartNavigation), {
-  ssr: false,
+  ssr: true,
+  loading: () => (
+    <Button
+      variant="outline"
+      className="relative w-full justify-start text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-64"
+      disabled
+    >
+      <div className="mr-2 h-4 w-4 animate-pulse bg-gray-300 rounded" />
+      <span className="hidden lg:inline-flex">Search tools...</span>
+      <span className="inline-flex lg:hidden">Search...</span>
+    </Button>
+  )
 });
 
 const categories = [
@@ -33,7 +44,7 @@ const categories = [
   {
     id: "Image Tools",
     name: "Image Tools",
-    icon: <Image className="h-4 w-4" />,
+    icon: <ImageIcon className="h-4 w-4" />,
     color: "bg-blue-500",
     tools: [
       {
@@ -42,7 +53,7 @@ const categories = [
         description: "Convert images between different formats",
         category: "Image Tools",
         href: "/tools/image-converter",
-        icon: <Image className="h-4 w-4" />,
+        icon: <ImageIcon className="h-4 w-4" />,
         keywords: ["image", "convert", "format", "jpg", "png"],
         usageCount: 32150
       }
@@ -113,7 +124,7 @@ export function Header() {
               Beta
             </Badge>
           </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium relative z-20"> {/* Added relative z-20 */}
+          <nav className="flex items-center space-x-6 text-sm font-medium">
             <Link
               href="/tools/pdf"
               className="transition-colors hover:text-foreground/80 text-foreground/60 flex items-center gap-1"
@@ -125,7 +136,7 @@ export function Header() {
               href="/tools/image"
               className="transition-colors hover:text-foreground/80 text-foreground/60 flex items-center gap-1"
             >
-              <Image className="h-4 w-4" />
+              <ImageIcon className="h-4 w-4" />
               Image Tools
             </Link>
             <Link
@@ -146,11 +157,12 @@ export function Header() {
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <div className="md:w-auto md:flex-none"> {/* Removed w-full flex-1 */}
+          <div className="w-full flex-1 md:w-auto md:flex-none">
             <SmartNavigation
               categories={categories}
               recentTools={recentTools}
               featuredTools={featuredTools}
+              suppressHydrationWarning
             />
           </div>
           <nav className="flex items-center space-x-2">

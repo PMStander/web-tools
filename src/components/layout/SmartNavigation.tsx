@@ -5,14 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 import { 
   Search, 
-  FileText, 
-  Image, 
-  Video, 
-  Zap, 
   Star, 
   Clock, 
   TrendingUp,
@@ -51,6 +46,7 @@ interface SmartNavigationProps {
   featuredTools?: Tool[]
   onToolSelect?: (tool: Tool) => void
   className?: string
+  suppressHydrationWarning?: boolean // Add this line
 }
 
 export function SmartNavigation({
@@ -64,12 +60,12 @@ export function SmartNavigation({
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
-  const [isClient, setIsClient] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Ensure component only renders interactive features on client
+  // Track when component is mounted on client
   useEffect(() => {
-    setIsClient(true)
+    setIsMounted(true)
   }, [])
 
   // Flatten all tools for searching
@@ -93,9 +89,9 @@ export function SmartNavigation({
     tools: filteredTools.filter(tool => tool.category === category.id)
   })).filter(category => category.tools.length > 0)
 
-  // Handle keyboard navigation - only on client
+  // Handle keyboard navigation - only when mounted
   useEffect(() => {
-    if (!isClient) return
+    if (!isMounted) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
@@ -137,7 +133,7 @@ export function SmartNavigation({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isClient, isOpen, filteredTools, highlightedIndex])
+  }, [isMounted, isOpen, filteredTools, highlightedIndex])
 
   // Reset highlighted index when search changes
   useEffect(() => {
@@ -173,7 +169,7 @@ export function SmartNavigation({
       </Button>
 
       {/* Search Modal */}
-      {isClient && isOpen && (
+      {isOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
           <div className="fixed left-1/2 top-1/2 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 p-4">
             <Card className="w-full max-h-[80vh] overflow-hidden">
@@ -185,7 +181,8 @@ export function SmartNavigation({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search tools, features, or keywords..."
                   className="border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
-                  autoFocus
+                  autoFocus={isMounted}
+                  disabled={!isMounted}
                 />
                 <div className="ml-auto flex items-center gap-2">
                   <kbd className="pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 hidden sm:inline-flex">
@@ -204,6 +201,7 @@ export function SmartNavigation({
                         size="sm"
                         onClick={() => setSelectedCategory(null)}
                         className="text-xs"
+                        disabled={!isMounted}
                       >
                         All Tools
                       </Button>
@@ -214,6 +212,7 @@ export function SmartNavigation({
                           size="sm"
                           onClick={() => setSelectedCategory(category.id)}
                           className="text-xs"
+                          disabled={!isMounted}
                         >
                           <span className="mr-1">{category.icon}</span>
                           {category.name}
@@ -300,7 +299,7 @@ export function SmartNavigation({
                     {filteredTools.length === 0 ? (
                       <div className="text-center py-8">
                         <Search className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-500">No tools found for "{searchQuery}"</p>
+                        <p className="text-sm text-gray-500">No tools found for &quot;{searchQuery}&quot;</p>
                         <p className="text-xs text-gray-400 mt-1">
                           Try searching for PDF, image, video, or converter
                         </p>
@@ -317,7 +316,7 @@ export function SmartNavigation({
                               </Badge>
                             </h3>
                             <div className="space-y-1">
-                              {category.tools.map((tool, index) => {
+                              {category.tools.map((tool) => {
                                 const globalIndex = filteredTools.indexOf(tool)
                                 return (
                                   <Link

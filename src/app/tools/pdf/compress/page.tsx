@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/layout/Header"
 import { FileUpload } from "@/components/tools/FileUpload"
 import { Button } from "@/components/ui/button"
@@ -9,9 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { 
-  FileText, 
-  Compress, 
+import {
+  FileText,
+  Archive,
   Download,
   Upload,
   Settings,
@@ -20,6 +20,7 @@ import {
   Zap,
   Shield
 } from "lucide-react"
+import { formatFileSize } from "@/lib/utils"
 
 const compressionLevels = [
   {
@@ -61,6 +62,12 @@ export default function PDFCompressPage() {
     compressedSize: number
     reduction: number
   } | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Track when component is mounted to prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleFileUpload = (file: File) => {
     setUploadedFile(file)
@@ -92,14 +99,6 @@ export default function PDFCompressPage() {
     setIsProcessing(false)
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -110,7 +109,7 @@ export default function PDFCompressPage() {
             <div className="text-center space-y-6">
               <div className="flex justify-center">
                 <Badge variant="outline" className="mb-4">
-                  <Compress className="mr-2 h-3 w-3" />
+                  <Archive className="mr-2 h-3 w-3" />
                   PDF Compression Tool
                 </Badge>
               </div>
@@ -186,17 +185,17 @@ export default function PDFCompressPage() {
                         ))}
                       </RadioGroup>
 
-                      <Button 
-                        onClick={handleCompress} 
-                        className="w-full" 
+                      <Button
+                        onClick={handleCompress}
+                        className="w-full"
                         size="lg"
-                        disabled={isProcessing}
+                        disabled={!isMounted || isProcessing}
                       >
                         {isProcessing ? (
                           <>Compressing...</>
                         ) : (
                           <>
-                            <Compress className="mr-2 h-5 w-5" />
+                            <Archive className="mr-2 h-5 w-5" />
                             Compress PDF
                           </>
                         )}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/layout/Header"
 import { FileUpload } from "@/components/tools/FileUpload"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,12 @@ export default function PDFSplitPage() {
   const [pageNumbers, setPageNumbers] = useState("")
   const [pagesPerFile, setPagesPerFile] = useState("1")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Track when component is mounted to prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleFileUpload = (file: File) => {
     setUploadedFile(file)
@@ -164,11 +170,11 @@ export default function PDFSplitPage() {
                         </div>
                       )}
 
-                      <Button 
-                        onClick={handleSplit} 
-                        className="w-full" 
+                      <Button
+                        onClick={handleSplit}
+                        className="w-full"
                         size="lg"
-                        disabled={isProcessing}
+                        disabled={!isMounted || isProcessing}
                       >
                         {isProcessing ? (
                           <>Processing...</>

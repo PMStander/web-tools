@@ -16,7 +16,7 @@ import {
   CheckCircle,
   Settings,
   Headphones,
-  FileAudio
+  AudioLines
 } from "lucide-react"
 
 export default function ExtractAudioPage() {
@@ -286,7 +286,7 @@ export default function ExtractAudioPage() {
               </div>
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <FileAudio className="h-8 w-8 text-green-600" />
+                  <AudioLines className="h-8 w-8 text-green-600" />
                 </div>
                 <h3 className="text-xl font-bold">Fast Extraction</h3>
                 <p className="text-gray-600">
