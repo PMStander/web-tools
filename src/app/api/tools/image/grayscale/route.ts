@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
-import { writeFile, mkdir } from 'fs/promises'
+import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import { existsSync } from 'fs'
@@ -101,7 +101,7 @@ async function convertToGrayscale(
   }
 
   // Apply output format and quality
-  const outputFormat = options.outputFormat || (metadata.format as string) || 'png'
+  const outputFormat = options.outputFormat || metadata.format as any || 'png'
   const quality = options.quality || 90
 
   switch (outputFormat) {
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     let originalMetadata: sharp.Metadata
     try {
       originalMetadata = await sharp(inputPath).metadata()
-    } catch {
+    } catch (error) {
       return NextResponse.json<GrayscaleResponse>({
         success: false,
         error: 'Invalid or corrupted image file'
@@ -189,8 +189,8 @@ export async function POST(request: NextRequest) {
       method,
       preserveColors: body.preserveColors,
       dimensions: {
-        width: grayscaleImageMetadata.width || 0,
-        height: grayscaleImageMetadata.height || 0
+        width: grayscaleMetadata.width || 0,
+        height: grayscaleMetadata.height || 0
       },
       outputFormat: outputFormat || originalMetadata.format,
       processingTime,
@@ -208,8 +208,8 @@ export async function POST(request: NextRequest) {
       method,
       preservedColors: body.preserveColors?.colors,
       dimensions: {
-        width: grayscaleImageMetadata.width || 0,
-        height: grayscaleImageMetadata.height || 0
+        width: grayscaleMetadata.width || 0,
+        height: grayscaleMetadata.height || 0
       },
       processingTime
     })
@@ -266,7 +266,7 @@ export async function GET(request: NextRequest) {
       data: info
     })
     
-  } catch {
+  } catch (error) {
     return NextResponse.json({
       success: false,
       error: 'Invalid image file'

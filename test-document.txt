@@ -1,0 +1,26 @@
+This is a test document for the AI Document Analyzer.
+
+The document contains sample content that demonstrates various aspects of text analysis:
+
+1. This text includes multiple sentences and paragraphs
+2. It has different emotional tones - this sentence is neutral
+3. This is an exciting announcement about our new product launch!
+4. Unfortunately, there are some concerning issues with the current implementation
+5. The system shows great promise for future development
+
+Key entities mentioned:
+- Product launch
+- Implementation issues
+- Future development
+- AI Document Analyzer
+
+The document also contains technical terms, business concepts, and various sentiment indicators that should be properly detected by the analysis engine.
+
+This content is specifically designed to test:
+- Text extraction capabilities
+- Sentiment analysis (positive, negative, neutral)
+- Named entity recognition
+- Document classification
+- Summary generation
+
+Overall, this test document should provide a good baseline for validating the AI analysis functionality.

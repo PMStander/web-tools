@@ -1,0 +1,25 @@
+AI Document Analyzer Test Document
+
+This is a test document for the AI Document Analyzer feature. The document contains various elements that should be analyzed by the AI system.
+
+Key Information:
+- Contact: John Smith at john.smith@example.com
+- Organization: TechCorp Inc.
+- Phone: (555) 123-4567
+- Location: San Francisco, California
+- Date: June 4, 2025
+- Budget: $50,000
+
+Summary:
+This document describes a project to implement an AI-powered document analysis system. The system should be able to extract entities, perform sentiment analysis, and provide insights about the document content.
+
+The project has a positive outlook and is expected to deliver significant value to users. Key stakeholders include the development team, product managers, and end users who will benefit from automated document analysis capabilities.
+
+Action Items:
+1. Complete the implementation
+2. Test with various document formats
+3. Deploy to production
+4. Gather user feedback
+5. Iterate based on learnings
+
+This document represents a medium complexity analysis task and is intended for technical teams working on AI integration projects.
