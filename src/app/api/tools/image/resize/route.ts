@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import { FileService, AppError } from '@/lib/file-service'
 
 interface ResizeRequest {
   fileId: string
@@ -182,7 +183,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId)
+    if (!inputPath) {
+      return NextResponse.json<ResizeResponse>({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
     
     // Validate input image
     try {
@@ -197,11 +205,10 @@ export async function POST(request: NextRequest) {
     // Resize image
     const { buffer, metadata, originalMetadata } = await resizeImage(inputPath, body)
     
-    // Generate output filename
+    // Generate output filename using FileService
     const outputFileId = uuidv4()
     const baseOutputName = outputName || `resized-image.${outputFormat}`
-    const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, baseOutputName, '-resized')
     
     // Save resized image
     await writeFile(outputPath, buffer)
@@ -210,6 +217,9 @@ export async function POST(request: NextRequest) {
     const originalSize = originalMetadata.size || 0
     const newSize = buffer.length
     const compressionRatio = originalSize > 0 ? ((originalSize - newSize) / originalSize) * 100 : 0
+    
+    // Get output filename from path
+    const outputFileName = outputPath.split('/').pop() || `${outputFileId}_${baseOutputName}`
     
     // Create response metadata
     const resizeMetadata = {
@@ -280,7 +290,14 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId)
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
     
     try {
       const metadata = await sharp(inputPath).metadata()

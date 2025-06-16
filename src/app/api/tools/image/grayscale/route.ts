@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import sharp from 'sharp'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
@@ -30,8 +31,8 @@ interface GrayscaleResponse {
   error?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 async function ensureOutputDir() {
   if (!existsSync(OUTPUT_DIR)) {
@@ -151,7 +152,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
     
     // Validate image file
     let originalMetadata: sharp.Metadata
@@ -172,7 +180,7 @@ export async function POST(request: NextRequest) {
     const fileExtension = outputFormat === 'jpeg' ? 'jpg' : (outputFormat || grayscaleImageMetadata.format || 'png')
     const baseOutputName = outputName || `grayscale-image.${fileExtension}`
     const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
     
     // Save grayscale image
     await writeFile(outputPath, grayscaleBuffer)
@@ -238,7 +246,14 @@ export async function GET(request: NextRequest) {
     }, { status: 400 })
   }
   
-  const inputPath = join(UPLOAD_DIR, fileId)
+  // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
   
   try {
     const metadata = await sharp(inputPath).metadata()

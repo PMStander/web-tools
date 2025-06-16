@@ -1,4 +1,6 @@
-// Error handling utilities for PDF processing APIs
+// Enhanced error handling utilities for all file processing APIs
+import { NextResponse } from 'next/server';
+import { logger } from './logger';
 
 export interface APIError {
   code: string
@@ -7,17 +9,39 @@ export interface APIError {
   statusCode: number
 }
 
-export class PDFProcessingError extends Error {
+export class AppError extends Error {
   public code: string
   public statusCode: number
   public details?: any
 
   constructor(code: string, message: string, statusCode: number = 500, details?: any) {
     super(message)
-    this.name = 'PDFProcessingError'
+    this.name = 'AppError'
     this.code = code
     this.statusCode = statusCode
     this.details = details
+  }
+}
+
+// Keep backwards compatibility
+export class PDFProcessingError extends AppError {
+  constructor(code: string, message: string, statusCode: number = 500, details?: any) {
+    super(code, message, statusCode, details)
+    this.name = 'PDFProcessingError'
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message: string, details?: any) {
+    super('VALIDATION_ERROR', message, 400, details)
+    this.name = 'ValidationError'
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(resource: string = 'Resource', details?: any) {
+    super('NOT_FOUND', `${resource} not found`, 404, details)
+    this.name = 'NotFoundError'
   }
 }
 
@@ -70,9 +94,121 @@ export const ERROR_MESSAGES = {
   [ERROR_CODES.UNAUTHORIZED]: 'Unauthorized access'
 } as const
 
-// Create standardized error response
-export function createErrorResponse(error: PDFProcessingError | Error, processingTime?: number) {
-  if (error instanceof PDFProcessingError) {
+/**
+ * Enhanced error handler that provides consistent error responses
+ * and comprehensive logging
+ */
+export class ErrorHandler {
+  /**
+   * Handle errors in API routes and return appropriate NextResponse
+   */
+  static handleError(
+    error: unknown,
+    context: {
+      operation?: string;
+      fileId?: string;
+      userId?: string;
+      endpoint?: string;
+    } = {}
+  ): NextResponse {
+    const { operation, fileId, userId, endpoint } = context;
+    
+    // Log the error with context
+    logger.error(
+      `Error in ${operation || 'API operation'}`,
+      error,
+      {
+        category: 'error-handler',
+        fileId,
+        userId,
+        metadata: {
+          operation,
+          endpoint,
+          errorType: error instanceof Error ? error.constructor.name : typeof error
+        }
+      }
+    );
+
+    // Handle known application errors
+    if (error instanceof AppError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+            details: error.details
+          },
+          timestamp: new Date().toISOString()
+        },
+        { status: error.statusCode }
+      );
+    }
+
+    // Handle Node.js errors
+    if (error instanceof Error) {
+      if ('code' in error) {
+        switch (error.code) {
+          case 'ENOENT':
+            return NextResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'FILE_NOT_FOUND',
+                  message: 'File not found'
+                },
+                timestamp: new Date().toISOString()
+              },
+              { status: 404 }
+            );
+        }
+      }
+    }
+
+    // Generic error fallback
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: isDevelopment && error instanceof Error 
+            ? error.message 
+            : 'Internal server error'
+        },
+        timestamp: new Date().toISOString()
+      },
+      { status: 500 }
+    );
+  }
+
+  /**
+   * Async wrapper for API route handlers that automatically handles errors
+   */
+  static async handleAsync<T>(
+    operation: () => Promise<T>,
+    context: {
+      operation?: string;
+      fileId?: string;
+      userId?: string;
+      endpoint?: string;
+    } = {}
+  ): Promise<NextResponse> {
+    try {
+      const result = await operation();
+      return NextResponse.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      return this.handleError(error, context);
+    }
+  }
+}
+
+// Create standardized error response (backwards compatibility)
+export function createErrorResponse(error: AppError | PDFProcessingError | Error, processingTime?: number) {
+  if (error instanceof AppError) {
     return {
       success: false,
       error: {

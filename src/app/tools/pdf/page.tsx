@@ -183,7 +183,7 @@ const categories = [
   { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 1 },
   { name: "Security", icon: <Shield className="h-4 w-4" />, count: 1 },
   { name: "Convert", icon: <FileImage className="h-4 w-4" />, count: 2 },
-  { name: "Extract", icon: <Type className="h-4 w-4" />, count: 3 },
+  { name: "Extract", icon: <Type className="h-4 w-4" />, count: 2 },
   { name: "Edit", icon: <Type className="h-4 w-4" />, count: 2 }
 ]
 

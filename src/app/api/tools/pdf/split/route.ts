@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { PDFDocument } from 'pdf-lib'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
@@ -26,8 +27,8 @@ interface SplitResponse {
   error?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 async function ensureOutputDir() {
   try {
@@ -191,7 +192,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
     
     // Validate PDF file
     try {
@@ -213,7 +221,7 @@ export async function POST(request: NextRequest) {
     for (const result of splitResults) {
       const outputFileId = uuidv4()
       const outputFileName = `${outputFileId}_${result.fileName}`
-      const outputPath = join(OUTPUT_DIR, outputFileName)
+      const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
       
       await writeFile(outputPath, result.buffer)
       

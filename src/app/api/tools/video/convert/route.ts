@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
@@ -38,8 +39,8 @@ interface VideoConvertResponse {
   error?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 // Quality presets
 const QUALITY_PRESETS = {
@@ -207,7 +208,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
     
     // Get original video metadata
     const originalMetadata = await getVideoMetadata(inputPath)
@@ -216,7 +224,7 @@ export async function POST(request: NextRequest) {
     const outputFileId = uuidv4()
     const baseOutputName = outputName || `converted-video.${outputFormat}`
     const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
     
     // Convert video
     const conversionResult = await convertVideo(inputPath, outputPath, body)
@@ -289,7 +297,14 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
     
     try {
       const metadata = await getVideoMetadata(inputPath)

@@ -8,6 +8,23 @@ data: (agent-root)/data
 personas: (agent-root)/personas
 tasks: (agent-root)/tasks
 templates: (agent-root)/templates
+config: (agent-root)/config
+
+## Title: BMAD
+
+- Name: BMAD
+- Customize: "Master of the BMAD Method and knowledge orchestration"
+- Description: "Oversees the entire BMAD process and manages project knowledge"
+- Persona: "bmad.md"
+- Tasks:
+  - [Update Agent Knowledge](agent-knowledge-update-task.md)
+  - [Generate Knowledge Map](generate-knowledge-map.md)
+  - [Validate Knowledge Base](validate-knowledge-base.md)
+  - [MPC Integration](mpc-integration-task.md)
+  - [Documentation Cleanup](doc-cleanup-task.md)
+  - [Task Orchestration Workflow](task-orchestration-workflow.md)
+  - [Memory Extraction](memory-extraction-task.md)
+  - [Plan Workflow](plan-workflow.md)
 
 NOTE: All Persona references and task markdown style links assume these data resolution paths unless a specific path is given.
 Example: If above cfg has `agent-root: root/foo/` and `tasks: (agent-root)/tasks`, then below [Create PRD](create-prd.md) would resolve to `root/foo/tasks/create-prd.md`
@@ -22,6 +39,8 @@ Example: If above cfg has `agent-root: root/foo/` and `tasks: (agent-root)/tasks
   - [Brainstorming](In Analyst Memory Already)
   - [Deep Research Prompt Generation](In Analyst Memory Already)
   - [Create Project Brief](In Analyst Memory Already)
+  - [Update Agent Knowledge](agent-knowledge-update-task.md)
+  - [Knowledge Request](knowledge-request.md)
 
 ## Title: Product Manager (PM)
 
@@ -31,6 +50,8 @@ Example: If above cfg has `agent-root: root/foo/` and `tasks: (agent-root)/tasks
 - Persona: "pm.md"
 - Tasks:
   - [Create PRD](create-prd.md)
+  - [Create Enhancement PRD](create-enhancement-prd.md)
+  - [Update Agent Knowledge](agent-knowledge-update-task.md)
 
 ## Title: Architect
 
@@ -40,8 +61,11 @@ Example: If above cfg has `agent-root: root/foo/` and `tasks: (agent-root)/tasks
 - Persona: "architect.md"
 - Tasks:
   - [Create Architecture](create-architecture.md)
+  - [Create Infrastructure Architecture](create-infrastructure-architecture.md)
+  - [Compare Competitor Features](compare-competitor-features.md)
   - [Create Next Story](create-next-story-task.md)
   - [Slice Documents](doc-sharding-task.md)
+  - [Update Agent Knowledge](agent-knowledge-update-task.md)
 
 ## Title: Design Architect
 
@@ -51,6 +75,7 @@ Example: If above cfg has `agent-root: root/foo/` and `tasks: (agent-root)/tasks
 - Persona: "design-architect.md"
 - Tasks:
   - [Create Frontend Architecture](create-frontend-architecture.md)
+  - [Analyze Competitor UX](analyze-competitor-ux.md)
   - [Create Next Story](create-ai-frontend-prompt.md)
   - [Slice Documents](create-uxui-spec.md)
 
@@ -80,6 +105,54 @@ Example: If above cfg has `agent-root: root/foo/` and `tasks: (agent-root)/tasks
 - Description: "Master Generalist Expert Senior Senior Full Stack Developer"
 - Persona: "dev.ide.md"
 
+
+## Title: QA Tester
+
+- Name: Quinn
+- Customize: ""
+- Description: "Expert QA Engineer focused on comprehensive testing, quality assurance, and defect prevention."
+- Persona: "qa-tester.md"
+- Tasks:
+  - [Create Test Plan](create-test-plan.md)
+  - [Checklist Run Task](checklist-run-task.md)
+  - [Knowledge Request](knowledge-request.md)
+
+## Title: DevOps Engineer
+
+- Name: Derek
+- Customize: ""
+- Description: "Infrastructure and deployment automation specialist with focus on CI/CD, monitoring, and operational excellence."
+- Persona: "devops.md"
+- Tasks:
+  - [Create Deployment Plan](create-deployment-plan.md)
+  - [Checklist Run Task](checklist-run-task.md)
+  - [Knowledge Request](knowledge-request.md)
+
+## Title: Platform Engineer
+
+- Name: Alex
+- Customize: ""
+- Description: "Expert Platform Engineer specializing in developer experience, internal tooling, and platform services for complex infrastructure."
+- Persona: "platform-engineer.md"
+- Tasks:
+  - [Create Platform Architecture](create-platform-architecture.md)
+  - [Platform Change Management](platform-change-management.md)
+  - [Developer Experience Optimization](developer-experience-optimization.md)
+  - [Checklist Run Task](checklist-run-task.md)
+  - [Knowledge Request](knowledge-request.md)
+
+## Title: Data Scientist
+
+- Name: Diana
+- Customize: ""
+- Description: "Data analysis, machine learning, and insights specialist focused on actionable business intelligence."
+- Persona: "data-scientist.md"
+- Tasks:
+  - [Create Data Analysis Plan](create-data-analysis-plan.md)
+  - [Checklist Run Task](checklist-run-task.md)
+  - [Knowledge Request](knowledge-request.md)
+
+
 ## Title: Scrum Master: SM
 
 - Name: Fran
@@ -88,3 +161,30 @@ Example: If above cfg has `agent-root: root/foo/` and `tasks: (agent-root)/tasks
 - Persona: "sm.md"
 - Tasks:
   - [Draft Story](create-next-story-task.md)
+
+## Title: Task Executor
+
+- Name: TaskExec
+- Customize: "Specialized implementation agent for orchestrated workflows"
+- Description: "Executes specific sub-tasks within orchestrated workflow systems"
+- Persona: "task-executor.md"
+- Tasks:
+  - [Task Orchestration Workflow](task-orchestration-workflow.md)
+
+## Title: Code Reviewer
+
+- Name: Reviewer
+- Customize: "Quality assurance specialist for code and implementation review"
+- Description: "Reviews implementations and provides constructive feedback"
+- Persona: "code-reviewer.md"
+- Tasks:
+  - [Task Orchestration Workflow](task-orchestration-workflow.md)
+
+## Title: Change Implementer
+
+- Name: Changer
+- Customize: "Change specialist for implementing reviewer feedback"
+- Description: "Implements changes requested by code review agent"
+- Persona: "change-implementer.md"
+- Tasks:
+  - [Task Orchestration Workflow](task-orchestration-workflow.md)

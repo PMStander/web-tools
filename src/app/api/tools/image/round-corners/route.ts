@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import sharp from 'sharp'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
@@ -15,8 +16,8 @@ interface RoundCornersRequest {
   outputName?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 async function ensureOutputDir() {
   if (!existsSync(OUTPUT_DIR)) {
@@ -47,7 +48,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
     const image = sharp(inputPath)
     const metadata = await image.metadata()
     
@@ -148,7 +156,7 @@ export async function POST(request: NextRequest) {
     const outputFileId = uuidv4()
     const baseOutputName = outputName || `rounded-image.${outputFormat}`
     const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
     
     await writeFile(outputPath, data)
     

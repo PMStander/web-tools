@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
@@ -47,8 +48,8 @@ interface ThumbnailResponse {
   error?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 const QUALITY_SETTINGS = {
   low: { quality: 60, scale: 0.5 },
@@ -163,7 +164,7 @@ async function generateMultipleThumbnails(
         const outputFileId = uuidv4()
         const format = options.format || 'jpg'
         const outputFileName = `${outputFileId}_thumbnail_${i + 1}.${format}`
-        const outputPath = join(OUTPUT_DIR, outputFileName)
+        const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
         
         const { success, error, width, height } = await generateSingleThumbnail(inputPath, outputPath, timestamp, options)
         
@@ -277,7 +278,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
     
     // Validate video file exists
     if (!existsSync(inputPath)) {
@@ -403,7 +411,14 @@ export async function GET(request: NextRequest) {
     }, { status: 400 })
   }
   
-  const inputPath = join(UPLOAD_DIR, fileId)
+  // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
   
   try {
     const metadata = await getVideoMetadata(inputPath)

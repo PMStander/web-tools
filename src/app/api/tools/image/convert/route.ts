@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import { FileService, AppError } from '@/lib/file-service'
 
 interface ConvertRequest {
   fileId: string
@@ -167,8 +168,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // In production, resolve file ID to actual file path from database
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId)
+    if (!inputPath) {
+      return NextResponse.json<ConvertResponse>({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
     
     // Validate input image
     const { isValid, metadata: inputMetadata } = await validateImage(inputPath)
@@ -179,11 +186,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Generate output filename
+    // Generate output filename using FileService
     const outputFileId = uuidv4()
     const baseOutputName = outputName || `converted-image.${outputFormat}`
-    const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, baseOutputName, '-converted')
     
     // Convert image
     const { buffer, metadata: outputMetadata } = await convertImage(inputPath, outputPath, body)
@@ -192,6 +198,9 @@ export async function POST(request: NextRequest) {
     const originalSize = inputMetadata?.size || 0
     const outputSize = buffer.length
     const compressionRatio = originalSize > 0 ? ((originalSize - outputSize) / originalSize) * 100 : 0
+    
+    // Get output filename from path
+    const outputFileName = outputPath.split('/').pop() || `${outputFileId}_${baseOutputName}`
     
     // In production, save output metadata to database
     const conversionMetadata = {

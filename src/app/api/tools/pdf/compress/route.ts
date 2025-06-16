@@ -3,6 +3,7 @@ import { PDFDocument } from 'pdf-lib'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import { FileService, AppError } from '@/lib/file-service'
 
 interface CompressRequest {
   fileId: string
@@ -152,7 +153,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId)
+    if (!inputPath) {
+      return NextResponse.json<CompressResponse>({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
     
     // Validate PDF file
     try {
@@ -174,11 +182,10 @@ export async function POST(request: NextRequest) {
       ? await advancedCompressPDF(inputPath, body)
       : await compressPDF(inputPath, body)
     
-    // Generate output filename
+    // Generate output filename using FileService
     const outputFileId = uuidv4()
     const baseOutputName = outputName || 'compressed-document.pdf'
-    const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, baseOutputName, '-compressed')
     
     // Save compressed PDF
     await writeFile(outputPath, compressedBuffer)
@@ -188,6 +195,8 @@ export async function POST(request: NextRequest) {
     const processingTime = Date.now() - startTime
     
     // Log compression results
+    const outputFileName = outputPath.split('/').pop() || `${outputFileId}_${baseOutputName}`
+    
     const compressionMetadata = {
       outputFileId,
       originalName: baseOutputName,
@@ -241,7 +250,14 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId)
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
     
     try {
       const fileBuffer = await readFile(inputPath)

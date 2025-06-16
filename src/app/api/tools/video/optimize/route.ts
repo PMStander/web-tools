@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
@@ -24,8 +25,8 @@ interface VideoOptimizeRequest {
   outputName?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 const OPTIMIZATION_PRESETS = {
   web: {
@@ -108,7 +109,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
     if (!existsSync(inputPath)) {
       return NextResponse.json({
         success: false,
@@ -119,7 +127,7 @@ export async function POST(request: NextRequest) {
     const outputFileId = uuidv4()
     const baseOutputName = outputName || `optimized-video.${outputFormat}`
     const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
     
     return new Promise((resolve) => {
       const preset = OPTIMIZATION_PRESETS[optimizationType]
@@ -206,7 +214,14 @@ export async function GET(request: NextRequest) {
     }, { status: 400 })
   }
   
-  const inputPath = join(UPLOAD_DIR, fileId)
+  // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
   
   try {
     const metadata = await new Promise((resolve, reject) => {

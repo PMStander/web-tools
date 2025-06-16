@@ -22,7 +22,8 @@ import {
   ArrowRight,
   Layers,
   Maximize,
-  FileImage
+  FileImage,
+  Settings
 } from "lucide-react"
 
 const imageTools = [
@@ -142,22 +143,6 @@ const imageTools = [
     quickActions: [
       { label: "Text Watermark", action: () => console.log("Text watermark") },
       { label: "Image Watermark", action: () => console.log("Image watermark") }
-    ]
-  },
-  {
-    title: "Background Remover",
-    description: "Remove backgrounds from images automatically using AI-powered detection",
-    icon: "/window.svg",
-    href: "/tools/image/background-remove",
-    category: "Image Tools",
-    isNew: true,
-    aiRecommended: true,
-    rating: 4.9,
-    usageCount: 15420,
-    estimatedTime: "20s",
-    quickActions: [
-      { label: "Auto Remove", action: () => console.log("Auto remove") },
-      { label: "Manual", action: () => console.log("Manual remove") }
     ]
   },
   {
@@ -332,9 +317,9 @@ const categories = [
   { name: "All Tools", icon: <Image className="h-4 w-4" />, count: imageTools.length },
   { name: "Convert", icon: <FileImage className="h-4 w-4" />, count: 2 },
   { name: "Transform", icon: <Crop className="h-4 w-4" />, count: 5 },
-  { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 2 },
+  { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 1 },
   { name: "Effects", icon: <Palette className="h-4 w-4" />, count: 8 },
-  { name: "AI Tools", icon: <Sparkles className="h-4 w-4" />, count: 3 },
+  { name: "AI Tools", icon: <Sparkles className="h-4 w-4" />, count: 2 },
   { name: "Utilities", icon: <Settings className="h-4 w-4" />, count: 2 }
 ]
 
@@ -378,15 +363,17 @@ export default function ImageToolsPage() {
     : imageTools.filter(tool => {
         switch (selectedCategory) {
           case "Convert":
-            return tool.title.includes("Converter")
-          case "Resize & Crop":
-            return tool.title.includes("Resize")
+            return tool.title.includes("Converter") || tool.title.includes("Grayscale Converter")
+          case "Transform":
+            return tool.title.includes("Resize") || tool.title.includes("Crop") || tool.title.includes("Rotate") || tool.title.includes("Flip") || tool.title.includes("Round Corners")
           case "Optimize":
             return tool.title.includes("Compress")
           case "Effects":
-            return tool.title.includes("Watermark") || tool.title.includes("Background")
+            return tool.title.includes("Watermark") || tool.title.includes("Background") || tool.title.includes("Blur") || tool.title.includes("Brightness") || tool.title.includes("Saturation") || tool.title.includes("Sepia") || tool.title.includes("Negative") || tool.title.includes("Border")
           case "AI Tools":
             return tool.aiRecommended
+          case "Utilities":
+            return tool.title.includes("Metadata") || tool.title.includes("Collage")
           default:
             return true
         }

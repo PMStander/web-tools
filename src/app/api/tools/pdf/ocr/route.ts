@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
@@ -44,8 +45,8 @@ interface OCRResult {
   }>
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 const TEMP_DIR = join(process.cwd(), 'temp')
 
 async function ensureOutputDir() {
@@ -321,7 +322,7 @@ export async function POST(request: NextRequest) {
     const outputFileId = uuidv4()
     const baseOutputName = outputName || `ocr-result.${fileExtension}`
     const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
     
     // Save OCR result
     await writeFile(outputPath, outputBuffer)

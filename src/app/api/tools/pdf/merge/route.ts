@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PDFDocument } from 'pdf-lib'
 import { readFile, writeFile } from 'fs/promises'
-import { join } from 'path'
-import { v4 as uuidv4 } from 'uuid'
+import { FileService } from '@/lib/services/FileService'
+import { AppError } from '@/lib/errors/AppError'
 
 interface MergeRequest {
   fileIds: string[]
@@ -18,28 +18,18 @@ interface MergeResponse {
   processingTime?: number
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
-
-// Ensure output directory exists
-async function ensureOutputDir() {
-  try {
-    const { mkdir } = await import('fs/promises')
-    await mkdir(OUTPUT_DIR, { recursive: true })
-  } catch (error) {
-    console.error('Failed to create output directory:', error)
-  }
-}
-
 // Validate PDF file
-async function validatePDF(filePath: string): Promise<boolean> {
+async function validatePDF(filePath: string): Promise<{ valid: boolean; error?: string }> {
   try {
     const fileBuffer = await readFile(filePath)
     await PDFDocument.load(fileBuffer)
-    return true
+    return { valid: true }
   } catch (error) {
     console.error('PDF validation failed:', error)
-    return false
+    if (error instanceof Error && error.message.includes('ENOENT')) {
+      return { valid: false, error: 'File not found' }
+    }
+    return { valid: false, error: 'Invalid or corrupted PDF file' }
   }
 }
 
@@ -74,8 +64,6 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
   
   try {
-    await ensureOutputDir()
-    
     const body: MergeRequest = await request.json()
     const { fileIds, outputName = 'merged-document.pdf' } = body
     
@@ -93,60 +81,93 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // In production, resolve file IDs to actual file paths from database
-    // For now, assume file IDs are the secure filenames
-    const filePaths = fileIds.map(fileId => join(UPLOAD_DIR, fileId))
+    // Resolve file paths using FileService
+    const filePaths: string[] = []
+    const fileValidationErrors: string[] = []
     
-    // Validate all PDF files exist and are valid
-    for (const filePath of filePaths) {
-      const isValid = await validatePDF(filePath)
-      if (!isValid) {
-        return NextResponse.json<MergeResponse>({
-          success: false,
-          error: `Invalid or corrupted PDF file: ${filePath}`
-        }, { status: 400 })
+    for (const fileId of fileIds) {
+      try {
+        const filePath = await FileService.resolveFilePath(fileId)
+        
+        // Validate the PDF file
+        const validation = await validatePDF(filePath)
+        if (!validation.valid) {
+          fileValidationErrors.push(`${fileId}: ${validation.error}`)
+          continue
+        }
+        
+        filePaths.push(filePath)
+      } catch (error) {
+        if (error instanceof AppError) {
+          fileValidationErrors.push(`${fileId}: ${error.message}`)
+        } else {
+          fileValidationErrors.push(`${fileId}: Failed to resolve file`)
+        }
       }
+    }
+    
+    // Check if we have enough valid files to merge
+    if (filePaths.length < 2) {
+      return NextResponse.json<MergeResponse>({
+        success: false,
+        error: fileValidationErrors.length > 0 
+          ? `Failed to process files: ${fileValidationErrors.join(', ')}`
+          : 'Not enough valid PDF files to merge'
+      }, { status: 400 })
+    }
+    
+    // If some files failed validation but we have at least 2 valid files, log warnings
+    if (fileValidationErrors.length > 0) {
+      console.warn('Some files failed validation:', fileValidationErrors)
     }
     
     // Merge PDFs
     const mergedBuffer = await mergePDFs(filePaths)
     
-    // Generate output filename
-    const outputFileId = uuidv4()
-    const outputFileName = `${outputFileId}_${outputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    // Generate output path using FileService
+    const outputPath = await FileService.generateOutputPath(outputName, 'pdf')
     
     // Save merged PDF
-    await writeFile(outputPath, mergedBuffer)
+    await writeFile(outputPath.fullPath, mergedBuffer)
     
     const processingTime = Date.now() - startTime
     
     // In production, save output metadata to database
     const outputMetadata = {
-      outputFileId,
+      outputFileId: outputPath.fileId,
       originalName: outputName,
-      fileName: outputFileName,
-      filePath: outputPath,
+      fileName: outputPath.fileName,
+      filePath: outputPath.fullPath,
       fileSize: mergedBuffer.length,
       mimeType: 'application/pdf',
       createdAt: new Date().toISOString(),
       processingTime,
-      inputFiles: fileIds
+      inputFiles: fileIds,
+      validatedFiles: filePaths.length,
+      failedFiles: fileValidationErrors.length
     }
     
     console.log('PDF merge completed:', outputMetadata)
     
     return NextResponse.json<MergeResponse>({
       success: true,
-      outputFileId,
-      outputFileName,
-      downloadUrl: `/api/files/download?fileId=${outputFileId}`,
+      outputFileId: outputPath.fileId,
+      outputFileName: outputPath.fileName,
+      downloadUrl: `/api/files/download?fileId=${outputPath.fileId}`,
       processingTime
     })
     
   } catch (error) {
     const processingTime = Date.now() - startTime
     console.error('PDF merge error:', error)
+    
+    if (error instanceof AppError) {
+      return NextResponse.json<MergeResponse>({
+        success: false,
+        error: error.message,
+        processingTime
+      }, { status: error.statusCode || 500 })
+    }
     
     return NextResponse.json<MergeResponse>({
       success: false,

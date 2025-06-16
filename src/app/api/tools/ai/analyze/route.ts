@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { FileService, AppError } from '@/lib/file-service';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,7 +10,7 @@ import {
 } from '@/lib/ai/analysis-engine';
 import { validateDocumentFile } from '@/lib/ai/document-processor';
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads');
+// FileService handles directory paths;
 
 // Ensure upload directory exists
 async function ensureUploadDir() {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { PDFDocument } from 'pdf-lib'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
@@ -73,7 +74,7 @@ interface AnalyzeResponse {
   error?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
+// FileService handles directory paths
 
 // Simulated AI analysis functions (in production, integrate with actual AI services)
 
@@ -237,7 +238,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
     
     // Extract text from document
     let extractedText: string

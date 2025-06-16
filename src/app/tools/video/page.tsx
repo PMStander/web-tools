@@ -202,7 +202,7 @@ const videoTools = [
 const categories = [
   { name: "All Tools", icon: <Video className="h-4 w-4" />, count: videoTools.length },
   { name: "Convert", icon: <FileVideo className="h-4 w-4" />, count: 3 },
-  { name: "Edit", icon: <Scissors className="h-4 w-4" />, count: 6 },
+  { name: "Edit", icon: <Scissors className="h-4 w-4" />, count: 7 },
   { name: "Extract", icon: <Music className="h-4 w-4" />, count: 2 },
   { name: "Optimize", icon: <Archive className="h-4 w-4" />, count: 2 }
 ]

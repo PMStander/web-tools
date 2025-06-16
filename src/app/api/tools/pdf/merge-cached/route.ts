@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { PDFDocument } from 'pdf-lib'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
@@ -32,8 +33,8 @@ interface MergeResponse {
   cached?: boolean
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 // Ensure output directory exists
 async function ensureOutputDir() {
@@ -143,7 +144,7 @@ async function performMerge(request: NextRequest): Promise<NextResponse> {
         // Generate output filename
         const outputFileId = uuidv4()
         const outputFileName = `${outputFileId}_${outputName}`
-        const outputPath = join(OUTPUT_DIR, outputFileName)
+        const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
         
         // Save merged PDF
         await writeFile(outputPath, mergedBuffer)

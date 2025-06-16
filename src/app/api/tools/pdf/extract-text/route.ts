@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { PDFDocument } from 'pdf-lib'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
@@ -50,8 +51,8 @@ interface PageTextData {
   }
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 // Helper function to find uploaded file by ID
 async function findUploadedFile(fileId: string): Promise<string | null> {
@@ -351,7 +352,7 @@ export async function POST(request: NextRequest) {
     const outputFileId = uuidv4()
     const baseOutputName = outputName || `extracted-text.${fileExtension}`
     const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
     
     // Save extracted text
     await writeFile(outputPath, outputContent, 'utf-8')

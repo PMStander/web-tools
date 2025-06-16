@@ -100,6 +100,8 @@ If there is a UI component to this PRD, you can inform the user that the Design 
 
 ### 6\. Produce the PRD
 
+**CRITICAL**: Create and SAVE the PRD as a file at `docs/prd.md` (following BMAD naming standards).
+
 Produce the PRD with PM Prompt per the `prd-tmpl` utilizing the following guidance:
 
 **General Presentation & Content:**

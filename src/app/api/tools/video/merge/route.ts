@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FileService, AppError } from '@/lib/file-service';
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
@@ -37,8 +38,8 @@ interface VideoMergeResponse {
   error?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
-const OUTPUT_DIR = join(process.cwd(), 'outputs')
+// FileService handles directory paths
+// FileService handles directory paths
 
 async function ensureOutputDir() {
   if (!existsSync(OUTPUT_DIR)) {
@@ -246,7 +247,14 @@ export async function POST(request: NextRequest) {
     
     // Validate all video files exist
     for (const fileId of fileIds) {
-      const inputPath = join(UPLOAD_DIR, fileId)
+      // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
       if (!existsSync(inputPath)) {
         return NextResponse.json<VideoMergeResponse>({
           success: false,
@@ -260,7 +268,7 @@ export async function POST(request: NextRequest) {
     const fileExtension = outputFormat
     const baseOutputName = outputName || `merged-video.${fileExtension}`
     const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, outputFileName)
     
     // Merge videos
     const { success, error, totalDuration } = await mergeVideos(fileIds, outputPath, body)
@@ -331,7 +339,14 @@ export async function GET(request: NextRequest) {
     let totalDuration = 0
     
     for (const fileId of fileIds) {
-      const inputPath = join(UPLOAD_DIR, fileId)
+      // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId);
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 });
+    }
       const metadata = await getVideoMetadata(inputPath)
       videoInfoList.push({
         fileId,

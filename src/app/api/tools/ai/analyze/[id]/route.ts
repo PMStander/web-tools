@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { FileService, AppError } from '@/lib/file-service';
 import { getAnalysisResult, exportAnalysisResult } from '@/lib/ai/analysis-engine';
 
 interface RouteParams {

@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import { FileService, AppError } from '@/lib/file-service'
 
 interface CompressRequest {
   fileId: string
@@ -205,7 +206,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId)
+    if (!inputPath) {
+      return NextResponse.json<CompressResponse>({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
     
     // Validate input image
     let originalMetadata: sharp.Metadata
@@ -221,12 +229,11 @@ export async function POST(request: NextRequest) {
     // Compress image
     const { buffer, metadata } = await compressImage(inputPath, body)
     
-    // Generate output filename
+    // Generate output filename using FileService
     const outputFileId = uuidv4()
     const finalOutputFormat = outputFormat || originalMetadata.format || 'jpeg'
     const baseOutputName = outputName || `compressed-image.${finalOutputFormat}`
-    const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, baseOutputName, '-compressed')
     
     // Save compressed image
     await writeFile(outputPath, buffer)
@@ -239,6 +246,9 @@ export async function POST(request: NextRequest) {
     // Calculate quality score
     const usedQuality = quality || COMPRESSION_PRESETS[compressionLevel][finalOutputFormat as keyof typeof COMPRESSION_PRESETS.low]?.quality || 80
     const qualityScore = calculateQualityScore(compressionRatio, usedQuality, finalOutputFormat)
+    
+    // Get output filename from path
+    const outputFileName = outputPath.split('/').pop() || `${outputFileId}_${baseOutputName}`
     
     // Create compression metadata
     const compressionMetadata = {
@@ -304,7 +314,14 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId)
+    if (!inputPath) {
+      return NextResponse.json({
+        success: false,
+        error: 'File not found'
+      }, { status: 404 })
+    }
     
     try {
       const metadata = await sharp(inputPath).metadata()

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readFile, writeFile, mkdir } from 'fs/promises'
+import { mkdir } from 'fs/promises'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import { existsSync } from 'fs'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import ffprobeStatic from 'ffprobe-static'
+import { FileService, AppError } from '@/lib/file-service'
 
 // Set FFmpeg and FFprobe paths
 if (ffmpegStatic) {
@@ -37,7 +38,6 @@ interface VideoCompressResponse {
   error?: string
 }
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads')
 const OUTPUT_DIR = join(process.cwd(), 'outputs')
 
 const COMPRESSION_PRESETS = {
@@ -182,25 +182,24 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const inputPath = join(UPLOAD_DIR, fileId)
-    
-    // Validate video file exists
-    if (!existsSync(inputPath)) {
+    // Resolve input file path using FileService
+    const inputPath = await FileService.resolveFilePath(fileId)
+    if (!inputPath) {
       return NextResponse.json<VideoCompressResponse>({
         success: false,
         error: 'Video file not found'
       }, { status: 404 })
     }
     
-    // Generate output filename
+    // Generate output filename using FileService
     const outputFileId = uuidv4()
     const fileExtension = outputFormat
     const baseOutputName = outputName || `compressed-video.${fileExtension}`
-    const outputFileName = `${outputFileId}_${baseOutputName}`
-    const outputPath = join(OUTPUT_DIR, outputFileName)
+    const outputPath = FileService.generateOutputPath(outputFileId, baseOutputName, '-compressed')
+    const outputFileName = outputPath.split('/').pop() || `${outputFileId}_${baseOutputName}`
     
     // Compress video
-    const { success, error, originalSize, compressedSize } = await compressVideo(inputPath, body)
+    const { success, error, originalSize, compressedSize } = await compressVideo(inputPath, outputPath, body)
     
     if (!success) {
       return NextResponse.json<VideoCompressResponse>({
@@ -266,7 +265,14 @@ export async function GET(request: NextRequest) {
     }, { status: 400 })
   }
   
-  const inputPath = join(UPLOAD_DIR, fileId)
+  // Resolve input file path using FileService
+  const inputPath = await FileService.resolveFilePath(fileId)
+  if (!inputPath) {
+    return NextResponse.json({
+      success: false,
+      error: 'Video file not found'
+    }, { status: 404 })
+  }
   
   try {
     // Get video metadata using FFprobe

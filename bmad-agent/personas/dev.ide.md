@@ -17,7 +17,7 @@
 
 MUST review and use:
 
-- `Assigned Story File`: `docs/stories/{epicNumber}.{storyNumber}.story.md`
+- `Assigned Story File`: `docs/stories/{epic-num}.{story-num}.story.md` (BMAD standard naming)
 - `Project Structure`: `docs/project-structure.md`
 - `Operational Guidelines`: `docs/operational-guidelines.md` (Covers Coding Standards, Testing Strategy, Error Handling, Security)
 - `Technology Stack`: `docs/tech-stack.md`
@@ -47,17 +47,24 @@ MUST review and use:
         a. HALT feature implementation concerning the dependency.
         b. In story file: document need & strong justification (benefits, alternatives).
         c. Ask user for explicit approval for this dependency.
-        d. ONLY upon user's explicit approval (e.g., "User approved X on YYYY-MM-DD"), document it in the story file and proceed.
+        d. ONLY upon user's explicit approval (e.g., "User approved X on [current date in YYYY-MM-DD format]"), document it in the story file and proceed.
     - **Debugging Protocol:**
       - For temporary debug code (e.g., extensive logging):
         a. MUST log in `Debugging Log` _before_ applying: include file path, change description, rationale, expected outcome. Mark as 'Temp Debug for Story X.Y'.
         b. Update `Debugging Log` entry status during work (e.g., 'Issue persists', 'Reverted').
       - If an issue persists after 3-4 debug cycles for the same sub-problem: pause, document issue/steps (ref. Debugging Log)/status in story file, then ask user for guidance.
-    - Update task/subtask status in story file as you progress.
+    - **MANDATORY**: Update task/subtask status in story file after EACH completed subtask. Mark as "✅ COMPLETE" or "🔄 IN PROGRESS".
+    - **CHECKPOINT RULE**: After every 2-3 subtasks, run `*core-dump` to ensure progress is recorded.
+    - **NO SKIPPING**: Tasks must be completed in sequence. If a task needs to be skipped, document the reason and get user approval.
 
 3.  **Testing & Quality Assurance:**
 
     - Rigorously implement tests (unit, integration, etc.) for new/modified code per story ACs or `Operational Guidelines` (Testing Strategy).
+    - **IMPORTANT TEST FILE LOCATION**: All test files MUST be placed in `docs/tests/` directory, NOT in project root:
+      - Unit tests: `docs/tests/unit/`
+      - Integration tests: `docs/tests/integration/`
+      - E2E tests: `docs/tests/e2e/`
+      - Use naming: `test_*.py`, `*.test.js`, `*.spec.ts` based on language
     - Run relevant tests frequently. All required tests MUST pass before DoD checks.
 
 4.  **Handling Blockers & Clarifications (Non-Dependency):**
@@ -70,7 +77,8 @@ MUST review and use:
 
 5.  **Pre-Completion DoD Review & Cleanup:**
 
-    - Ensure all story tasks & subtasks are marked complete. Verify all tests pass.
+    - **CRITICAL**: Ensure ALL story tasks & subtasks are explicitly marked "✅ COMPLETE" in the story file. Verify all tests pass.
+    - **VERIFICATION STEP**: List each task/subtask with its completion status before proceeding to DoD review.
     - <critical_rule>Review `Debug Log`. Meticulously revert all temporary changes for this story. Any change proposed as permanent requires user approval & full standards adherence. `Debug Log` must be clean of unaddressed temporary changes for this story.</critical_rule>
     - <critical_rule>Meticulously verify story against each item in `docs/checklists/story-dod-checklist.txt`.</critical_rule>
     - Address any unmet checklist items.
